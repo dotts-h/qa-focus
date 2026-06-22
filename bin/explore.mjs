@@ -19,8 +19,9 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { chromium, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { CopilotClient, RuntimeConnection, ToolSet, defineTool, approveAll } from '@github/copilot-sdk';
+import { openSurface } from '../src/provider.mjs';
 import { makeAllowlist, guardContext } from '../src/allowlist.mjs';
 import { newSink, attachCollectors, renderArtifact } from '../src/evidence.mjs';
 
@@ -39,11 +40,15 @@ async function main() {
     await new Promise((r) => setTimeout(r, 500));
   }
 
-  const browser = await chromium.launch({ channel: process.env.PW_CHANNEL });
-  const context = await browser.newContext();
-  await guardContext(context, allow);
+  const surface = await openSurface({
+    kind: process.env.SURFACE || 'web',
+    channel: process.env.PW_CHANNEL,
+    electronArgs: (process.env.ELECTRON_ARGS || '').split(' ').filter(Boolean),
+    cdpUrl: process.env.CDP_URL,
+  });
+  const { context, page } = surface;
+  if (surface.kind === 'web') await guardContext(context, allow); // allowlist applies to real web surfaces
   await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
-  const page = await context.newPage();
   const sink = newSink();
   attachCollectors(page, sink);
   const findings = [];
@@ -116,7 +121,7 @@ async function main() {
   console.log('\n' + md);
 
   await client.stop?.();
-  await browser.close();
+  await surface.close();
   server?.kill();
 }
 

@@ -49,6 +49,25 @@ Deliberately **not** copied: "precise coordinate clicking." Coordinate clicks ar
 thing the gate avoids) — actions are accessible role+name first; coordinate/CDP input is a future
 canvas-only fallback.
 
+## Surfaces: web, Electron, OpenFin (`src/provider.mjs`)
+
+"Bringing Copilot to the browser" is the industry-standard pattern, not a special integration:
+Copilot has **no native browser engine** — the agent calls tools (our `defineTool` browser actions)
+that drive Playwright over CDP. Antigravity does the same (a browser sub-agent + an MCP server
+speaking CDP over a WebSocket). So our explorer *is* the standard architecture.
+
+Because Electron and OpenFin are both Chromium, the gate/tools/evidence (all of which operate on a
+`Page`) are unchanged — only the launcher differs:
+
+| Surface | Launcher | Notes (verified) |
+|---|---|---|
+| **web** | `chromium.launch()` | tested |
+| **electron** | `_electron.launch({ args:[main] })` | windows are `Page`s; `electronApp.evaluate()` reaches the main process. Must control the lifecycle — **cannot attach** to an independently-started instance; watch single-instance locks. |
+| **openfin** | `chromium.connectOverCDP(cdpUrl)` | launch the RVM yourself with `--runtime-arguments="--remote-debugging-port=N"`, poll until the port is up, then windows appear as pages. Keep OpenFin's Chromium ~compatible with Playwright; `xvfb` on Linux CI. |
+
+The Antigravity-internal specifics (sub-agent names, signed CDP sockets) are agy-sourced and
+**unverified** — the general CDP+MCP+allowlist model is corroborated.
+
 ## Next
 
 1. Live smoke of `explore.mjs` against the fixture app (and a staging URL), verify the artifact.
