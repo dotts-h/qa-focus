@@ -1,0 +1,17 @@
+{
+  "name": "qa-focus",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Control-first agentic QA on the Copilot SDK + Playwright: an autonomous explorer that discovers, and a gated codifier that hardens findings into standards-compliant durable tests.",
+  "scripts": {
+    "test": "playwright test",
+    "author": "node bin/author.mjs",
+    "explore": "node bin/explore.mjs"
+  },
+  "dependencies": {
+    "@github/copilot-sdk": "*",
+    "@playwright/test": "*",
+    "playwright": "*"
+  }
+}

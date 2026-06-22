@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QA Sandbox — Todo</title>
+</head>
+<body>
+  <h1>Todo</h1>
+  <form id="add-form">
+    <label>New task <input id="new-task" name="task" required /></label>
+    <button type="submit">Add</button>
+  </form>
+  <ul id="list" aria-label="tasks"></ul>
+  <script>
+    const form = document.getElementById('add-form');
+    const input = document.getElementById('new-task');
+    const list = document.getElementById('list');
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const value = input.value.trim();
+      if (!value) return;
+      const li = document.createElement('li');
+      li.textContent = value;
+      list.appendChild(li);
+      input.value = '';
+    });
+  </script>
+</body>
+</html>
