@@ -65,8 +65,16 @@ Because Electron and OpenFin are both Chromium, the gate/tools/evidence (all of 
 | **electron** | `_electron.launch({ args:[main] })` | windows are `Page`s; `electronApp.evaluate()` reaches the main process. Must control the lifecycle — **cannot attach** to an independently-started instance; watch single-instance locks. |
 | **openfin** | `chromium.connectOverCDP(cdpUrl)` | launch the RVM yourself with `--runtime-arguments="--remote-debugging-port=N"`, poll until the port is up, then windows appear as pages. Keep OpenFin's Chromium ~compatible with Playwright; `xvfb` on Linux CI. |
 
-The Antigravity-internal specifics (sub-agent names, signed CDP sockets) are agy-sourced and
-**unverified** — the general CDP+MCP+allowlist model is corroborated.
+Confirmed via Antigravity's own `antigravity_guide` (through `agy`): CDP over a local WebSocket +
+accessibility-tree nav + MCP interface + a "Manager-View" orchestrating parallel browser subagents;
+artifacts are `task.md` + `walkthrough.md` with screenshots/video/console/network; security is a URL
+allowlist (`~/.gemini/antigravity/browserAllowlist.txt`) + human-approval gating. **Electron/OpenFin
+are explicitly supported the same way we wire them** — launch with `--remote-debugging-port` and
+attach over CDP. We go further on security: tool-gating removes fs/shell/network capabilities
+entirely, not just gates them.
+
+Cheap upgrades this surfaces: mirror the `task.md`/`walkthrough.md` artifact convention and add
+video capture to `src/evidence.mjs`.
 
 ## Next
 
