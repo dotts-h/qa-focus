@@ -12,10 +12,16 @@ the two distinct jobs: an **explorer** that discovers (findings a human verifies
   clean app and a real hostile app (the-internet). Codifier (`bin/author.mjs`) runs live on the
   installed Copilot login. URL allowlist + tool-gating injection defense. Repo seeded, 13 tests green.
 
-- **M1 — Live explorer smoke (NEXT).**
-  Run `bin/explore.mjs` against the fixture app and a staging URL; confirm the autonomous agent
-  drives the browser under the leash and emits a useful `artifacts/explore-report.md`. Measure
-  cost/flakiness; decide step-budget defaults.
+- **M1 — Live explorer smoke (DONE).**
+  `bin/explore.mjs` drove the fixture app autonomously under the leash and emitted an artifact.
+  (Surfaced: explorer verification should route through the gate — a naive `getByRole(listitem)`
+  check produced a borderline false-positive finding.)
+
+- **M1.5 — Adopt the Playwright CLI for browser actions (see ADR 0001).**
+  Replace the explorer's hand-rolled `inspect_aom`/`browser_*` tools (which stream the full aria
+  tree inline = context bloat) with thin gated wrappers over `@playwright/cli` (disk snapshots +
+  element refs, ~4x fewer tokens). NO MCP. Keep the gate/codifier in-process. Route explorer
+  verification through the gate.
 
 - **M2 — Browser-provider abstraction (web | electron | openfin). SEAM BUILT.**
   `src/provider.mjs` exposes `openSurface({kind})`; the explorer targets any surface via `SURFACE=`.

@@ -13,5 +13,8 @@
     "@github/copilot-sdk": "*",
     "@playwright/test": "*",
     "playwright": "*"
+  },
+  "devDependencies": {
+    "@playwright/cli": "^0.1.14"
   }
 }
