@@ -63,4 +63,5 @@ mini's Homebrew path). Verified: extension **loads + registers** in a copilot se
 
 ## Norms
 Verify on a real signal (run the tests/app — don't guess twice). Surgical changes. Don't `git
-commit` the memory store. Nothing here is pushed to GitHub yet (local-only).
+commit` the memory store. **Public repo:** github.com/dotts-h/qa-focus (Apache-2.0) — no secrets,
+infra details, or internal hostnames in committed files. Commit/push only when asked.
