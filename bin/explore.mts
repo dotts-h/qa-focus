@@ -44,6 +44,8 @@ const START_URL = process.env.START_URL || 'http://localhost:3000';
 const GOAL = process.env.GOAL || 'Exercise the main user flow (add an item). Report anything broken or confusing.';
 const ALLOWLIST = (process.env.ALLOWLIST || 'localhost').split(',');
 const CDP_PORT = Number(process.env.CDP_PORT || 9222);
+// Live run stream is default-on; silence it for piped/CI runs (#0013).
+const QUIET = !!process.env.QA_QUIET || process.argv.includes('--quiet');
 const log = (...a: unknown[]): void => console.log('[explore]', ...a);
 
 async function main(): Promise<void> {
@@ -95,11 +97,12 @@ async function main(): Promise<void> {
   // The control model (hard leash + step budget) lives in src/harness.mts (ADR 0002). The
   // budget is the runaway-loop circuit-breaker: on exhaustion the model is denied further
   // tools and told to stop and summarize (it still writes its findings artifact).
-  const { session, client } = await createGatedSession({
+  const { session, client, detachStream } = await createGatedSession({
     cli: CLI,
     model: process.env.COPILOT_MODEL,
     tools: makeBrowserTools({ getCtx, allow, allowlist: ALLOWLIST, sink, findings, flow, saveState: surface.saveState, statePath: process.env.STORAGE_STATE }),
     stepBudget: Number(process.env.STEP_BUDGET || 60),
+    quiet: QUIET, // stream the model's reasoning/output/tool calls live unless silenced (#0013)
   });
 
   log('goal:', GOAL);
@@ -118,6 +121,7 @@ async function main(): Promise<void> {
     },
     240_000,
   );
+  detachStream(); // close the live stream before the artifact summary prints
 
   // Artifacts go in the USER's project (cwd), not the package install dir — so the README's
   // `qa-focus codify --flow artifacts/explore-flow.json` handoff resolves where the user runs.
