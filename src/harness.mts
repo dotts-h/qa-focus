@@ -14,6 +14,7 @@ import type { ToolDescriptor } from './tool.mjs';
 import { attachStreamRenderer } from './stream.mjs';
 import { attachCostMeter } from './cost.mjs';
 import type { AccumulateOptions, UsageSummary } from './cost.mjs';
+import { resolveModel } from './models.mjs';
 
 /** Options for `createGatedSession` — the hard leash (cage + deny + budget). */
 export interface GatedSessionOptions {
@@ -57,8 +58,21 @@ export async function createGatedSession({ cli, model, tools, stepBudget, recenc
   let steps = 0;
 
   const client = new CopilotClient({ connection: RuntimeConnection.forStdio({ path: cli }) });
+
+  // Model selection (#0017): a `--model` the operator typed must FAIL LOUD if it isn't a real model,
+  // never silently fall back to the wrong one on a live, quota-burning run. Validate against the
+  // login's actual model list before opening the session. Only pays the listModels round-trip when a
+  // model was requested; an unset model uses the session default with no extra call.
+  let resolvedModel = model;
+  if (model) {
+    await client.start(); // connect so listModels works (idempotent — createSession would call it too)
+    const r = resolveModel(await client.listModels(), model);
+    if (!r.ok) { await client.stop?.(); throw new Error(`qa-focus: ${r.error}`); }
+    resolvedModel = r.model; // the canonical (trimmed) id — what we validated is what we open the session with
+  }
+
   const session = await client.createSession({
-    ...(model ? { model } : {}),
+    ...(resolvedModel ? { model: resolvedModel } : {}),
     tools: defined,
     availableTools: new ToolSet().addCustom('*'), // the leash: no fs/shell/network tools exist
     streaming: !quiet, // emit incremental reasoning/message deltas for the live run stream (#0013)
