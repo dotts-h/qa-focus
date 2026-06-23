@@ -1,6 +1,6 @@
 # ADR 0003 — v1 distribution: CLI-first, native adapters, ZERO MCP
 
-- Status: accepted
+- Status: accepted — deliverable #1's **npm-registry publish** is superseded-by-[0006](0006-no-npm-publish-distribute-from-github.md) (the CLI ships from the GitHub repo via git install); CLI-first + zero-MCP + the three adapters all stand.
 - Date: 2026-06-23
 
 ## Context
