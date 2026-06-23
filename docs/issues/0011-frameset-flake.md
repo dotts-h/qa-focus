@@ -1,7 +1,7 @@
 ---
 id: 0011
 title: Flaky legacy <frameset> degradation test under parallel load
-status: open
+status: closed
 severity: low
 group:
 depends_on: []
@@ -9,9 +9,9 @@ github: 12
 forgejo:
 links:
   adr:
-  prs: []
+  prs: [feat/chrome-channel]
   issues: []
-  regression:
+  regression: "REGRESSIONS #3"
 assets: []
 ---
 
@@ -28,5 +28,7 @@ Actual: the frameset test (line 86) intermittently times out; green on re-run (C
 Observed 2026-06-23 during the M4/M5 work: one failure in ~3 full-suite runs, always this test.
 
 ## Notes
-Distinct from the fixed `CX_PORT` flake (REGRESSIONS #2). Likely needs an explicit frame-ready wait
-or isolating this spec from the heavy parallel pool. Low severity — CI retry masks it.
+Distinct from the fixed `CX_PORT` flake (REGRESSIONS #2). FIXED: the test now polls until the
+nested `frame-middle` and its button are attached before grading (`expect.poll`, no fixed sleep),
+so the gate's `page.frame({name})` lookup can't race the frame attach. Verified robust under heavy
+parallelism (`--repeat-each 8 --workers 6` → 56/56). Guard: REGRESSIONS #3.

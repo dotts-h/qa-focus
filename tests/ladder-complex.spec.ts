@@ -87,6 +87,15 @@ test('legacy <frameset>/<frame>: frameLocator cannot reach it, the gate DEGRADES
   const page = await openAt('/frameset.html');
   // frame-middle is nested inside frame-top — a page CSS selector can't reach it; only
   // the by-name Frame API pierces the tree. The gate should degrade automatically and grade ok.
+  // Nested frames attach AFTER domcontentloaded, so poll until the target frame + its button are
+  // actually present before grading (web-first wait, no fixed sleep) — otherwise the gate's
+  // page.frame({name}) lookup races the frame attach and intermittently sees 0 elements.
+  await expect
+    .poll(async () => {
+      const fr = page.frame({ name: 'frame-middle' });
+      return fr ? await fr.getByRole('button', { name: 'Frame Submit' }).count() : 0;
+    }, { timeout: 10_000 })
+    .toBe(1);
   const p: any = { tier: 'role', role: 'button', name: 'Frame Submit', frame: 'frame[name="frame-middle"]' };
   const g = await gradeLocator(page, p);
   expect(g.ok).toBe(true);
