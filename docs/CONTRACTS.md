@@ -20,6 +20,7 @@
 | Gated tool descriptor | `{ name, def: { description, parameters (JSON Schema), handler } }` — the model's only way to act | **stable** | `src/browser-tools.mts`, `src/codify-tools.mts` |
 | `createGatedSession({cli,model,tools,stepBudget,recency})` | → `{ session, client, toolNames }`; the hard leash (cage + deny + budget) | **stable** — the injection defense | `src/harness.mts` · [ADR 0002](adr/0002-extract-gated-session-harness.md) |
 | `openSurface({kind,channel,…,storageState})` | → `{ kind, context, page, cdpEndpoint, saveState, close }` across web/electron/openfin | **stable** | `src/provider.mts` · [ADR 0001](adr/0001-no-mcp-use-playwright-cli.md) |
+| Action driver | `PwCli` shape `cmd('snapshot'\|'goto'\|'click'\|'fill'\|'press') → { ok, out }`; `attachCli` (CDP, web/openfin) and `attachInProcess` (Electron, no CDP) are interchangeable backends → `{ pwcli, getCtx }` | **stable** | `src/pwcli.mts`, `src/inproc-driver.mts` · [ADR 0005](adr/0005-in-process-action-adapter-electron.md) |
 | `makeAllowlist(patterns)` / `guardContext(ctx, allow)` | URL predicate + network-layer navigation guard | **stable** | `src/allowlist.mts` |
 | `lintSpec(source)` | → `{ ok, violations: [{ rule, line, snippet, why }] }` (Playwright standards) | **stable** | `src/standards.mts` |
 | Authored auth reuse | `resolveStorageState(path, exists?)` → reuse capture iff it exists, else `undefined`; authored specs import `tests/authored/fixtures.ts` (`test`/`expect`) for storageState reuse + unauth fallback | **stable** | `src/authored.mts`, `tests/authored/fixtures.ts` |

@@ -25,6 +25,7 @@ import { makeAllowlist, guardContext } from '../src/allowlist.mjs';
 import { newSink, attachCollectors } from '../src/evidence.mjs';
 import type { Finding } from '../src/evidence.mjs';
 import { attachCli } from '../src/pwcli.mjs';
+import { attachInProcess } from '../src/inproc-driver.mjs';
 import { makeBrowserTools } from '../src/browser-tools.mjs';
 import { makeCodifyTools } from '../src/codify-tools.mjs';
 import { resolveCopilotCli } from '../src/copilot-path.mjs';
@@ -59,7 +60,8 @@ async function main(): Promise<void> {
     storageState: process.env.STORAGE_STATE, // reuse a captured login if the file exists
   });
   const { context, page, cdpEndpoint } = surface;
-  if (!cdpEndpoint) throw new Error(`surface "${surface.kind}" exposes no CDP endpoint for the playwright-cli to attach to`);
+  // Electron has no CDP endpoint → in-process action driver (ADR 0005); web/openfin need CDP.
+  if (!cdpEndpoint && surface.kind !== 'electron') throw new Error(`surface "${surface.kind}" exposes no CDP endpoint for the playwright-cli to attach to`);
   if (surface.kind === 'web') await guardContext(context, allow);
   const sink = newSink();
   attachCollectors(page, sink, allow);
@@ -68,7 +70,9 @@ async function main(): Promise<void> {
 
   if (allow(START_URL)) { await page.goto(START_URL, { waitUntil: 'domcontentloaded' }); sink.steps.push(`goto ${START_URL}`); }
 
-  const { pwcli: pw, getCtx } = await attachCli({ cdpEndpoint, page, session: 'qa-focus-codify' });
+  const { pwcli: pw, getCtx } = cdpEndpoint
+    ? await attachCli({ cdpEndpoint, page, session: 'qa-focus-codify' })
+    : await attachInProcess({ page, session: 'qa-focus-codify' });
 
   // The control model (hard leash + step budget + recency) lives in src/harness.mts (ADR 0002).
   const { session, client } = await createGatedSession({

@@ -26,6 +26,7 @@ import { makeAllowlist, guardContext } from '../src/allowlist.mjs';
 import { newSink, attachCollectors, renderArtifact } from '../src/evidence.mjs';
 import type { Finding } from '../src/evidence.mjs';
 import { attachCli } from '../src/pwcli.mjs';
+import { attachInProcess } from '../src/inproc-driver.mjs';
 import { makeBrowserTools } from '../src/browser-tools.mjs';
 import { makeCodifyTools } from '../src/codify-tools.mjs';
 import { resolveCopilotCli } from '../src/copilot-path.mjs';
@@ -58,7 +59,8 @@ async function main(): Promise<void> {
     storageState: process.env.STORAGE_STATE, // reuse a captured login if the file exists
   });
   const { context, page, cdpEndpoint } = surface;
-  if (!cdpEndpoint) throw new Error(`surface "${surface.kind}" exposes no CDP endpoint for the playwright-cli to attach to`);
+  // Electron has no CDP endpoint → in-process action driver (ADR 0005); web/openfin need CDP.
+  if (!cdpEndpoint && surface.kind !== 'electron') throw new Error(`surface "${surface.kind}" exposes no CDP endpoint for the playwright-cli to attach to`);
   if (surface.kind === 'web') await guardContext(context, allow);
   await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
   const sink = newSink();
@@ -68,7 +70,9 @@ async function main(): Promise<void> {
 
   if (allow(START_URL)) { await page.goto(START_URL, { waitUntil: 'domcontentloaded' }); sink.steps.push(`goto ${START_URL}`); }
 
-  const { pwcli: pw, getCtx } = await attachCli({ cdpEndpoint, page, session: 'qa-focus-repl' });
+  const { pwcli: pw, getCtx } = cdpEndpoint
+    ? await attachCli({ cdpEndpoint, page, session: 'qa-focus-repl' })
+    : await attachInProcess({ page, session: 'qa-focus-repl' });
 
   // The control model (hard leash + recency) lives in src/harness.mts (ADR 0002). No step
   // budget here — turns are human-paced over stdin, so the human is the circuit-breaker.
