@@ -86,7 +86,9 @@ export function accumulateUsage(records: UsageRecord[], opts: AccumulateOptions 
     mu.requests++;
 
     const nano = r.copilotUsage?.totalNanoAiu;
-    if (typeof nano === 'number') {
+    // `Number.isFinite` (not just `typeof === 'number'`) so a malformed NaN/Infinity from one bad
+    // request is skipped rather than poisoning the whole run's credit total. A real 0 still counts.
+    if (typeof nano === 'number' && Number.isFinite(nano)) {
       nanoAiu += nano;
       sawCredits = true;
       mu.aiCredits = (mu.aiCredits ?? 0) + nano / NANO_PER_AIU;

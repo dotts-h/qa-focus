@@ -38,6 +38,37 @@ test('AI-Credits are summed from copilotUsage.totalNanoAiu (1 AIU = 1e9 nano)', 
   expect(s.models[0].aiCredits).toBeCloseTo(0.6, 9);
 });
 
+test('per-model AI-Credits are attributed per record, not broadcast from the grand total', () => {
+  const s = accumulateUsage([u('a', 1, 1, nano(420_000_000)), u('b', 1, 1, nano(180_000_000))]);
+  const by = Object.fromEntries(s.models.map((m) => [m.model, m.aiCredits]));
+  expect(by.a).toBeCloseTo(0.42, 9);
+  expect(by.b).toBeCloseTo(0.18, 9);
+  expect(s.aiCredits).toBeCloseTo(0.6, 9);
+});
+
+test('a zero-credit request reports 0 AI-Credits (reported), distinct from "not reported"', () => {
+  const s = accumulateUsage([u('m', 10, 5, nano(0))]);
+  expect(s.aiCredits).toBe(0); // sawCredits is true — the model DID report (zero) cost
+  expect(formatUsage(s).some((l) => /Cost: 0 AI-Credits/.test(l))).toBe(true);
+});
+
+test('a non-finite totalNanoAiu is skipped, not summed into NaN (one bad request cannot poison the run)', () => {
+  const s = accumulateUsage([u('m', 10, 5, nano(420_000_000)), u('m', 10, 5, { copilotUsage: { totalNanoAiu: NaN } })]);
+  expect(s.aiCredits).toBeCloseTo(0.42, 9); // the NaN record contributed nothing
+});
+
+test('a zero credits→$ rate yields $0, not a dropped estimate (!= null includes 0)', () => {
+  const s = accumulateUsage([u('m', 10, 5, nano(500_000_000))], { creditsToUsd: 0 });
+  expect(s.usd).toBe(0);
+});
+
+test('aiu formatting keeps whole-number credits intact (10 AIU → "10", never "1")', () => {
+  const s = accumulateUsage([u('m', 1, 1, nano(10_000_000_000))]); // 10 AIU
+  const lines = formatUsage(s);
+  expect(lines.some((l) => /Cost: 10 AI-Credits/.test(l))).toBe(true);
+  expect(lines.every((l) => !/Cost: 1 AI-Credits/.test(l))).toBe(true);
+});
+
 test('a USD estimate is added only when a credits→$ rate is supplied AND credits are known', () => {
   const withCredits = accumulateUsage([u('m', 100, 50, nano(500_000_000))], { creditsToUsd: 0.1 });
   expect(withCredits.aiCredits).toBeCloseTo(0.5, 9);
