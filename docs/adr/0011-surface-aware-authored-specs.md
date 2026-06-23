@@ -44,8 +44,15 @@ Option 3. `specShapeInstruction` is the single home for the surface-specific spe
 selects it by `SURFACE`. The existing gates are unchanged and already accept the Electron shape: the
 standards linter (`src/standards.mts`) has nothing to flag (web-first assertions, no `goto`, no hard
 waits), and the capability scan (`src/spec-guard.mts`) allows `@playwright/test` / `playwright`
-imports (`_electron` lives there) — only host-capability modules are rejected. `QA_ELECTRON_APP` is
-added to the `safeSpecEnv` allowlist as an operational *path* (like `STORAGE_STATE`), not a secret.
+imports (`_electron` lives there) — only host-capability *modules* are rejected. **Threat-model note:**
+`_electron.launch` is itself a process-spawn (it runs the app's main process in full Node), and because
+it is a method on an allowed import the static scan structurally cannot catch it — functionally it is
+the `child_process` capability the scan exists to gate. This is **not a new hole** (the explorer
+already launches the operator-chosen app, and `run_spec` already runs full Node) but it must not be
+presented as fully gated: an authored Electron spec is in the **same untrusted-until-human-reviewed
+residual** as ADR 0010's obfuscation bypass, and the scrubbed env still bounds exfil. See SECURITY.md.
+`QA_ELECTRON_APP` is added to the `safeSpecEnv` allowlist as an operational *path* (like
+`STORAGE_STATE`), not a secret — it does **not** reopen the secret-exfil leg ADR 0010 closed.
 The codifier also now passes `electronArgs` to `openSurface` (it previously didn't, so `SURFACE=
 electron` codify never drove the real app) and seeds `QA_ELECTRON_APP` from those args.
 

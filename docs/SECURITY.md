@@ -34,6 +34,15 @@ defenses, and the residual risks, in priority order:
   authored specs remain **untrusted until human-reviewed** (the "never self-certified" principle) and
   OS-level isolation (a container) stays the documented future hardening if a stronger guarantee is
   needed.
+  - **Process-spawn caveat for Electron specs (#0027, ADR 0011).** A surface-aware Electron spec
+    calls `_electron.launch({ args: [QA_ELECTRON_APP, …] })` — a method on the allowed `@playwright/test`
+    import, so the capability scan (which gates `child_process`, not API methods) does **not** flag it.
+    That is a genuine process-spawn: it runs the configured Electron app's main process (full Node) and,
+    by abuse of `args`, could point at another binary. It is **not a fresh hole** — the explorer already
+    launches the operator-chosen app (`provider.mts`), and `run_spec` already runs full Node — and it
+    falls in the **same untrusted-until-human-reviewed residual** as the obfuscation bypass above. The
+    **scrubbed env still bounds exfil** (`QA_ELECTRON_APP` is a path, not a secret; host secrets stay
+    dropped). Treat an authored Electron spec as the untrusted, human-reviewed artifact it is.
 - **RESIDUAL — the Copilot extension is a SOFT leash.** An extension cannot remove copilot's built-in
   fs/shell tools, so the gate is bypassable there. Use `bin/interactive.mjs` (hard leash) when
   enforcement matters. — documented in [ARCHITECTURE.md](ARCHITECTURE.md).

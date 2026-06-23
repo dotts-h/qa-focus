@@ -46,6 +46,15 @@ test('Electron Todo app loads', async () => {
 });
 `;
 
+// ELECTRON_SPEC is hand-maintained; tie it to the instruction so the two can't silently drift —
+// if specShapeInstruction changes the launch line, this fails until ELECTRON_SPEC is updated, so the
+// "passes the gates" tests below keep proving the CURRENTLY-instructed shape (not a stale one).
+test('the representative spec matches the launch line specShapeInstruction mandates', () => {
+  const launch = "_electron.launch({ args: [process.env.QA_ELECTRON_APP ?? 'fixtures/electron', '--no-sandbox'] })";
+  expect(ELECTRON_SPEC).toContain(launch);
+  expect(specShapeInstruction('electron', { appPath: 'fixtures/electron' })).toContain(launch);
+});
+
 test('the Electron spec shape passes the standards linter', () => {
   const { ok, violations } = lintSpec(ELECTRON_SPEC);
   expect(ok, JSON.stringify(violations)).toBe(true);
