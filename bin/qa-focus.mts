@@ -21,7 +21,7 @@ const SELF_EXT = import.meta.url.endsWith('.mts') ? '.mts' : '.mjs';
 const PKG_JSON = SELF_EXT === '.mts' ? join(HERE, '../package.json') : join(HERE, '../../package.json');
 
 // subcommand → harness script
-const COMMANDS: Record<string, string> = { explore: `explore${SELF_EXT}`, codify: `codify${SELF_EXT}`, interactive: `interactive${SELF_EXT}` };
+const COMMANDS: Record<string, string> = { explore: `explore${SELF_EXT}`, codify: `codify${SELF_EXT}`, interactive: `interactive${SELF_EXT}`, models: `models${SELF_EXT}` };
 
 // value flag → the env var the harnesses already read
 const VALUE_FLAGS: Record<string, string> = {
@@ -31,7 +31,7 @@ const VALUE_FLAGS: Record<string, string> = {
   '--storage-state': 'STORAGE_STATE',
 };
 // boolean flag → env var set to '1'
-const BOOL_FLAGS: Record<string, string> = { '--headed': 'HEADED', '--force-open-shadow': 'FORCE_OPEN_SHADOW' };
+const BOOL_FLAGS: Record<string, string> = { '--headed': 'HEADED', '--force-open-shadow': 'FORCE_OPEN_SHADOW', '--quiet': 'QA_QUIET' };
 
 /** The result of parsing argv: the chosen command, env mapping, and any problems. */
 export interface ParsedArgs {
@@ -91,6 +91,7 @@ Commands:
   explore       Autonomously discover flows/bugs → evidence artifact + durable flow
   codify        Harden a flow into a gated, standards-compliant Playwright spec
   interactive   Enforcing REPL (hard leash) for hands-on authoring
+  models        List the models available to your copilot login (ids for --model)
 
 Options (mapped onto the harness env contract):
   --goal <text>          what to do (GOAL)
@@ -101,10 +102,12 @@ Options (mapped onto the harness env contract):
   --surface <kind>      web | electron | openfin (SURFACE)
   --allowlist <csv>     trusted hosts (ALLOWLIST)
   --steps <n>           step budget / circuit-breaker (STEP_BUDGET)
-  --model <id>          model override (COPILOT_MODEL)
+  --model <id>          model override (COPILOT_MODEL); validated against 'qa-focus models'
+  --list-models         alias for the models command
   --storage-state <p>   reuse a captured login (STORAGE_STATE)
   --cdp-url <url>       attach over CDP, e.g. openfin (CDP_URL)
   --headed              run headed (HEADED)
+  --quiet               silence the live stream for headless/piped runs (QA_QUIET)
   --force-open-shadow   pierce closed shadow roots (FORCE_OPEN_SHADOW)
   -h, --help            show this help
   -v, --version         show version
@@ -116,6 +119,7 @@ Examples:
 
 function main(argv: string[]): number | null {
   if (argv.length === 0 || argv[0] === '-h' || argv[0] === '--help') { process.stdout.write(HELP); return 0; }
+  if (argv[0] === '--list-models') argv = ['models', ...argv.slice(1)]; // alias → the `models` command
   if (argv[0] === '-v' || argv[0] === '--version') { process.stdout.write(version() + '\n'); return 0; }
   const { cmd, env, unknown, missing } = parseArgs(argv);
   const script = COMMANDS[cmd];

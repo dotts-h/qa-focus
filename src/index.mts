@@ -40,6 +40,10 @@ export type { StreamRenderer, AttachStreamOptions, StreamHandle } from './stream
 export { accumulateUsage, formatUsage, renderCostSummary, attachCostMeter } from './cost.mjs';
 export type { UsageRecord, UsageSummary, ModelUsage, TokenTotals, AccumulateOptions, CostMeter } from './cost.mjs';
 
+// Model selection — pure resolve/format + the live model lister.
+export { resolveModel, formatModelList, listCopilotModels } from './models.mjs';
+export type { ResolveResult } from './models.mjs';
+
 // The model's capability surface — gated tool factories.
 export { makeBrowserTools } from './browser-tools.mjs';
 export type { BrowserToolsOptions } from './browser-tools.mjs';

@@ -1,7 +1,7 @@
 ---
 id: 0017
 title: Headless run mode + model selection (--model / --list-models)
-status: open
+status: closed
 severity: medium
 group: 0015
 depends_on: []
@@ -22,15 +22,20 @@ takes a `model` option — surface them as first-class CLI flags so a run is rep
 CI/pipe-friendly.
 
 ## Acceptance
-- [ ] `qa-focus --list-models` prints the available models (id + name, and a flag for the default)
-      from `client.listModels()` — no run, just the list. Exits 0.
-- [ ] `--model <id>` selects the session model on `explore`/`codify`/`interactive` (validated against
-      the list; an unknown id fails loud with the valid set, not a silent fallback).
-- [ ] Headless one-shot: `explore`/`codify` already run non-interactively; ensure `--quiet`/`QA_QUIET`
-      gives clean machine-readable output (stream off, final artifact/flow + the cost summary only) so
-      a CI/pipe consumer gets a stable result. Document the headless invocation.
-- [ ] A **pure** unit test for the model-resolution logic (given a model list + a requested id →
-      resolved id or a typed error; no network/model).
+- [x] `qa-focus models` (alias `--list-models`) prints the available models (id + name) from
+      `client.listModels()` — no run, just the list, exit 0. `src/models.mts` (`listCopilotModels` +
+      pure `formatModelList`) + `bin/models.mts`. Verified live (14 models listed). The SDK `ModelInfo`
+      carries no default flag, so the default is documented as "omit `--model`" rather than marked.
+- [x] `--model <id>` selects the session model (already mapped → `COPILOT_MODEL`) and is **validated
+      in the harness** against `client.listModels()` before the session opens — an unknown id throws
+      with the valid set, not a silent fallback. Verified live: `--model bogus-model` → fails loud,
+      exit 1, no quota burned; `--model claude-haiku-4.5` → ran and the cost summary confirms the model.
+- [x] Headless one-shot: `--quiet` (mapped → `QA_QUIET`) silences the stream; the artifact + durable
+      flow + token/AI-Credits cost summary are the machine-readable output. Verified live; README
+      documents the headless invocation.
+- [x] A **pure** unit test for model resolution (`tests/models.spec.ts`, 7 cases: exact match, unset
+      default, fail-loud-on-unknown listing the set, case/whitespace exactness, empty list) + CLI
+      wiring tests (`models` command parses; `--help` lists it).
 
 ## Notes
 `COPILOT_MODEL` env already feeds the harness; `--model` is the friendly flag onto it (consistent

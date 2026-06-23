@@ -62,3 +62,16 @@ test('an unknown command exits non-zero with usage', () => {
   catch (e: any) { code = e.status; }
   expect(code).toBe(2);
 });
+
+test('the models command parses with no flags (dispatches the lister)', () => {
+  const { cmd, env, unknown, missing } = parseArgs(['models']);
+  expect(cmd).toBe('models');
+  expect({ env, unknown, missing }).toEqual({ env: {}, unknown: [], missing: [] });
+});
+
+test('--help lists the models command and the --list-models / --model options (#0017)', () => {
+  const out = execFileSync(process.execPath, [...RUN, '--help'], { encoding: 'utf8' });
+  expect(out).toMatch(/^\s*models\b/m);
+  expect(out).toContain('--list-models');
+  expect(out).toContain('--model');
+});

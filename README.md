@@ -71,12 +71,24 @@ npx playwright install chromium
 qa-focus explore     --goal "Add a task and verify it appears" --url https://your.app
 qa-focus codify      --flow artifacts/explore-flow.json --spec add-task
 qa-focus interactive --url https://your.app     # enforcing REPL (the hard leash)
+qa-focus models                                 # list the models your login can use
 qa-focus --help
 ```
 
+**Model selection & headless runs.** `qa-focus models` (alias `--list-models`) prints the model ids
+your `copilot` login exposes; pass one with `--model <id>` (an unknown id fails loud with the valid
+set — never a silent fallback). `--quiet` silences the live stream for headless/piped/CI runs, leaving
+the evidence artifact, the durable flow, and a token + AI-Credits cost summary as the machine-readable
+output:
+
+```bash
+qa-focus explore --model claude-haiku-4.5 --quiet --url https://your.app --goal "…"
+```
+
 Friendly flags map onto the env contract the harnesses read
-(`GOAL`/`START_URL`/`PW_CHANNEL`/`SURFACE`/`FLOW`/`STORAGE_STATE`/…); a value flag with no value
-exits non-zero rather than silently using a wrong default. `qa-focus --help` lists them all.
+(`GOAL`/`START_URL`/`PW_CHANNEL`/`SURFACE`/`FLOW`/`STORAGE_STATE`/`COPILOT_MODEL`/`QA_QUIET`/…); a
+value flag with no value exits non-zero rather than silently using a wrong default. `qa-focus --help`
+lists them all.
 
 ## Status
 

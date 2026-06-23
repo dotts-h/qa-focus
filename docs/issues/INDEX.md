@@ -36,5 +36,5 @@ never a cycle).
 | [0014](0014-cost-usage-accounting-tokens-ai-credits-on-direct-shell-runs.md) | Cost & usage accounting (tokens + AI-Credits, on direct shell runs) | closed | medium | 0012 | |
 | [0015](0015-epic-multi-host-runner-streamable-repl-headless-model-select-vs-code-participant.md) | Epic: Multi-host runner — streamable REPL, headless model-select, VS Code participant | open | medium | — | |
 | [0016](0016-streamable-repl-polish-readline-stream-while-typing-adr-0008.md) | Streamable REPL polish — readline stream-while-typing (ADR 0008) | open | medium | 0015 | |
-| [0017](0017-headless-run-mode-model-selection-model-list-models.md) | Headless run mode + model selection (--model / --list-models) | open | medium | 0015 | |
+| [0017](0017-headless-run-mode-model-selection-model-list-models.md) | Headless run mode + model selection (--model / --list-models) | closed | medium | 0015 | |
 | [0018](0018-vs-code-qa-focus-chat-participant-extension-adr-0007-no-mcp.md) | VS Code @qa-focus chat participant extension (ADR 0007, no MCP) | open | medium | 0015 | |
