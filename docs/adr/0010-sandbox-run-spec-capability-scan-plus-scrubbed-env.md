@@ -59,3 +59,8 @@ not a container/VM the sandbox or CI may not be able to nest.
   hardening if a stronger guarantee is needed.
 - **−** A spec that legitimately needs a non-allowlisted env var must have it added to the allowlist
   (intentional — secrets are opt-in, not ambient).
+- **−** The scan is line/text-based, not AST-aware, so it can **over-block**: an authored line whose
+  *string literal* contains a module-specifier substring (e.g. `toHaveText("loaded from 'fs'")`) is
+  rejected even though it imports nothing. This errs on the safe side (block, never silently allow);
+  the author removes/rewords the literal. A token/AST-level scan would remove the false positive but
+  is deliberately out of scope for this static guard.

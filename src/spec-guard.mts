@@ -31,7 +31,10 @@ const ESCAPES: { rule: string; re: RegExp; why: string }[] = [
   { rule: 'no-function-ctor', re: /\bnew\s+Function\s*\(/, why: 'new Function() compiles arbitrary code — not allowed in an authored test.' },
   { rule: 'no-require', re: /\brequire\s*\(/, why: 'require() loads arbitrary modules — authored specs use static ESM imports of @playwright/test and local files only.' },
   { rule: 'no-process-binding', re: /\bprocess\s*\.\s*binding\b/, why: 'process.binding reaches native internals — not allowed.' },
-  { rule: 'no-dynamic-import', re: /\bimport\s*\(\s*(?!['"])/, why: 'a non-literal dynamic import() is an obfuscation vector — import statically from a quoted path.' },
+  // Keep the whitespace INSIDE the lookahead: `import( "x" )` (spaced literal) is fine; only a
+  // non-literal `import(variable)` is the obfuscation vector. (A `\s*` outside the lookahead would
+  // backtrack to zero and wrongly flag the spaced literal.)
+  { rule: 'no-dynamic-import', re: /\bimport\s*\((?!\s*['"])/, why: 'a non-literal dynamic import() is an obfuscation vector — import statically from a quoted path.' },
 ];
 
 /** Scan model-authored spec/POM source for host-capability access. Comment-aware (a `//`-only line

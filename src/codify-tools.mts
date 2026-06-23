@@ -131,7 +131,7 @@ export function makeCodifyTools({ getCtx, root, facts = [] }: CodifyToolsOptions
         // write_spec/write_pom — and run under a scrubbed env (safeSpecEnv) with no host secrets.
         const authoredDir = join(root, 'tests', 'authored');
         let files: string[] = [];
-        try { files = readdirSync(authoredDir).filter((f) => f.endsWith('.ts')); } catch { /* none authored yet */ }
+        try { files = readdirSync(authoredDir, { recursive: true }).filter((f) => typeof f === 'string' && f.endsWith('.ts')) as string[]; } catch { /* none authored yet */ }
         for (const f of files) {
           const cap = scanSpecCapabilities(readFileSync(join(authoredDir, f), 'utf8'));
           if (!cap.ok) return { textResultForLlm: `BLOCKED before run — ${f} accesses host capabilities:\n${renderViolations(cap.violations)}\nAuthored specs must not touch the filesystem/process/network. Remove it and re-run.`, resultType: 'denied' };

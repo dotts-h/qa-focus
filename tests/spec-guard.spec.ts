@@ -52,6 +52,12 @@ test('a comment mentioning a banned module does NOT trip the scan', () => {
   expect(scanSpecCapabilities(`// never import fs or child_process here`).ok).toBe(true);
 });
 
+test('a spaced LITERAL dynamic import of a safe local path is allowed; a variable one is blocked', () => {
+  expect(scanSpecCapabilities(`const m = await import( "./helper.pom" );`).ok).toBe(true); // spaced literal — fine
+  expect(scanSpecCapabilities(`const m = await import(  './fixtures'  );`).ok).toBe(true);
+  expect(scanSpecCapabilities(`const m = await import( attackerControlled );`).ok).toBe(false); // non-literal — blocked
+});
+
 test('safeSpecEnv keeps operational vars + forces RUN_AUTHORED, drops host secrets', () => {
   const env = safeSpecEnv({
     PATH: '/usr/bin', HOME: '/home/x', PW_CHANNEL: 'chromium', STORAGE_STATE: '/tmp/state.json',
