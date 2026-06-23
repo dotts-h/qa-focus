@@ -120,9 +120,14 @@ ahead: the OpenFin infra (Mac mini vs Windows VM) and whether to spend credits o
   when an authored locator stops resolving, it proposes a replacement ONLY when the gate cleanly
   accepts a unique candidate (role-drift with a stable name → re-roled locator; name-drift on a
   unique element → role-only), refuses ambiguous recovery, and NEVER silently green-washes a test
-  (every heal is flagged needs-confirmation). Tests: `tests/healer.spec.ts` (4). **Next:** a
-  *trace-driven* healer that uses the failure trace's DOM to recover when the page alone is
-  ambiguous (the limitation the page-based healer documents).
+  (every heal is flagged needs-confirmation). Tests: `tests/healer.spec.ts` (4). A **trace-driven**
+  healer (`extractTraceContext` → `healFromTrace`) recovers the intended element's accessible scope
+  when the live page alone is ambiguous (#0010), and is now **wired to a real artifact** (#0020, ADR
+  0009): the explorer captures each pre-action DOM to a purpose-built snapshot store
+  (`src/snapshot-store.mts`, loadable HTML — not the trace zip's internal format) and
+  `healFromSnapshot(page, broken, path)` heals from it, still gate-verified, still refusing rather
+  than green-washing. Tests: `tests/healer-trace.spec.ts` (6) + `tests/snapshot-store.spec.ts` (3) +
+  `tests/healer-snapshot.spec.ts` (3).
 
 - **M6 — Packaging & distribution.**
   Copilot **plugin** (`plugin.json`) for one-line installs; CI integration; internal sharing.

@@ -6,6 +6,7 @@
 // needsConfirmation, and REFUSES (healed:false) when recovery is ambiguous — it never
 // guesses into the wrong element, and the human/codifier confirms before adopting it.
 import type { Page } from 'playwright';
+import { readFileSync } from 'node:fs';
 import { gradeLocator, buildLocator, render } from '../extension/qa-focus/ladder.mjs';
 import type { Proposal } from '../extension/qa-focus/ladder.mjs';
 
@@ -151,4 +152,26 @@ export async function healFromTrace(page: Page, broken: Proposal, trace: TraceCo
     } catch { /* candidate not constructible here — try the next */ }
   }
   return { healed: false, reason: 'the trace context did not yield an unambiguous recovery — re-author by hand', was: render(broken) };
+}
+
+/**
+ * Heal from a purpose-built DOM snapshot FILE (#0020, ADR 0009) — the trace-driven heal wired to a
+ * real artifact. The explorer's snapshot store (src/snapshot-store.mts) persists each pre-action DOM
+ * as loadable HTML; this loads one back into a throwaway page (reusing the live browser context),
+ * recovers the intended element's accessible scope (`extractTraceContext`), then re-grades the
+ * recovered candidate on the LIVE `page` (`healFromTrace` stays authoritative). Always closes the
+ * throwaway page; refuses (no green-washing) when the snapshot can't be read or yields no recovery.
+ */
+export async function healFromSnapshot(page: Page, broken: Proposal, snapshotPath: string): Promise<HealResult> {
+  let html: string;
+  try { html = readFileSync(snapshotPath, 'utf8'); }
+  catch { return { healed: false, reason: `snapshot not readable: ${snapshotPath}`, was: render(broken) }; }
+  const snap = await page.context().newPage();
+  try {
+    await snap.setContent(html);
+    const ctx = await extractTraceContext(snap, broken);
+    return await healFromTrace(page, broken, ctx);
+  } finally {
+    await snap.close();
+  }
 }

@@ -1,14 +1,14 @@
 ---
 id: 0020
 title: Trace-driven healer integration — feed explore-trace.zip DOM into the recover+re-grade core
-status: open
+status: closed
 severity: medium
 group: 0019
 depends_on: []
 github: 39
 forgejo:
 links:
-  adr:
+  adr: 0009
   prs: []
   issues: [0010]
   regression:
@@ -18,34 +18,43 @@ assets: []
 ## Summary
 Close the one deferred step from #0010 (M5 trace-driven self-healing): the recover+re-grade core
 (`extractTraceContext` → `healFromTrace` in `src/healer.mts`) is implemented and deterministically
-tested, but it consumes the DOM snapshot **as an already-loaded Page**. Pulling that snapshot HTML
-out of the Playwright `explore-trace.zip` and loading it is the remaining "thin swappable
-integration step". Wire it so a real failing run can heal from its own trace.
+tested, but it consumes the DOM snapshot **as an already-loaded Page** — there was no code path from
+a real run's captured DOM into it. Wire it so a real failing run can heal from a captured pre-failure
+snapshot.
+
+**Design pivot (ADR 0009).** Investigation showed the Playwright `explore-trace.zip` stores DOM in an
+*internal serialized snapshot format* (nested arrays + `[n,m]` back-refs), not loadable HTML —
+reading it means re-implementing Playwright's snapshot renderer against an undocumented,
+version-fragile encoding. We instead added a **purpose-built snapshot store**: the explorer persists
+each pre-action DOM (`page.content()` from the authoritative in-process gate page) as loadable HTML,
+and the healer loads one back. Control-first (the program owns the artifact), no Playwright-internals
+coupling. The trace zip stays for human debugging.
 
 ## Repro
-1. Run the explorer (`bin/explore.mts`) — it writes `artifacts/explore-trace.zip`
-   (`context.tracing.stop({ path })`, `bin/explore.mts:132`).
+1. Run the explorer (`bin/explore.mts`) — each mutating action now captures the page DOM to
+   `artifacts/snapshots/NNNN-*.html` (the in-process gate page, ADR 0009).
 2. A later authored locator goes ambiguous on the live page; `healLocator` correctly refuses.
-Expected: the failure trace's snapshot (captured when the locator still resolved) is read and fed to
-`extractTraceContext` so `healFromTrace` can recover the scoped, gate-verified candidate.
-Actual: there is no code path from `explore-trace.zip` → a Page → `extractTraceContext`; the core is
-only exercised by tests that `setContent` hand-written HTML.
+Expected: `healFromSnapshot(page, broken, snapshotPath)` reads the pre-failure DOM, recovers the
+scoped accessible candidate, and re-grades it on the live page (gate-verified).
+Actual (before): no path from a captured DOM → `extractTraceContext`; the core was only exercised by
+tests that `setContent` hand-written HTML.
 
 ## Acceptance
-- [ ] A function (e.g. `extractTraceSnapshot(traceZipPath, ...)`) reads the DOM snapshot HTML from a
-      Playwright trace zip and loads it into a throwaway Page (closed after use).
-- [ ] A higher-level `healFromTraceFile(page, broken, traceZipPath)` chains extract → `healFromTrace`,
-      returning the same gate-verified, `needsConfirmation` result (and the same refusals — no silent
-      green-washing).
-- [ ] Deterministic test: produce a real trace zip in-test (start tracing, act, stop), then heal a
-      deliberately-broken locator from that zip and assert the recovered scoped candidate (and a
-      refusal case). No model, no quota.
-- [ ] `make lint` + `make test` green.
+- [x] `src/snapshot-store.mts` (`createSnapshotStore(dir)` → `capture(page) / latest()`) persists the
+      page's DOM as loadable HTML; capture never throws (returns null on failure).
+- [x] `healFromSnapshot(page, broken, snapshotPath)` (`src/healer.mts`) reads the snapshot HTML, loads
+      it into a throwaway page (reusing the live context, closed after use), chains
+      `extractTraceContext` → `healFromTrace` — same gate-verified `needsConfirmation` result, same
+      refusals (no silent green-washing).
+- [x] Wired into the explorer: `bin/explore.mts` creates the store and the gated browser tools capture
+      the pre-action DOM before each `click` / `fill` / `press`.
+- [x] Deterministic tests: `tests/snapshot-store.spec.ts` (3) + `tests/healer-snapshot.spec.ts` (3) —
+      capture writes loadable HTML, heal-from-file resolves the scoped candidate, and refuses when the
+      snapshot can't disambiguate / the file is missing. No model, no quota.
+- [x] `npm run lint` + `PW_CHANNEL=chromium npm test` green (161 passed).
 
 ## Notes
-Seam: `src/healer.mts` (core, untouched) + a small trace-reader (new). The explorer already writes
-the trace; this only adds the read side. Playwright trace zips store page snapshots — prefer reading
-them via Playwright's own trace tooling over hand-parsing the zip if a stable API exists; otherwise
-extract the snapshot entry from the zip and `setContent`/`goto` it. Keep the reader pure and
-gate-authoritative: the live-page re-grade stays the source of truth. Context: #0010 acceptance box
-marked `[~]` for exactly this step.
+Seam: `src/healer.mts` (core untouched; one new `healFromSnapshot`) + new `src/snapshot-store.mts` +
+opt-in `snapshots` capture in `src/browser-tools.mts` (explorer-only — the gate/extension paths are
+unaffected). The live-page re-grade stays authoritative. Decision recorded in ADR 0009. Context:
+#0010 acceptance box marked `[~]` for exactly this step.

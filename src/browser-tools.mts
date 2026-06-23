@@ -22,6 +22,7 @@ import type { Flow } from './flow.mjs';
 import type { AllowPredicate } from './allowlist.mjs';
 import type { Sink, Finding } from './evidence.mjs';
 import type { BrowserCtx } from './pwcli.mjs';
+import type { SnapshotStore } from './snapshot-store.mjs';
 import type { ToolDef, ToolDescriptor } from './tool.mjs';
 
 /** Inputs to the browser-tool factory. `getCtx` resolves the live page + CLI per call. */
@@ -34,10 +35,13 @@ export interface BrowserToolsOptions {
   saveState?: (path: string) => Promise<unknown>;
   statePath?: string;
   flow?: Flow;
+  /** Opt-in DOM snapshot store (#0020, ADR 0009): captures the pre-action DOM so a later
+   *  failed locator can be healed from the state where it still resolved. Explorer-only. */
+  snapshots?: SnapshotStore;
 }
 
 export function makeBrowserTools(
-  { getCtx, allow = () => true, allowlist = [], sink, findings, saveState, statePath, flow }: BrowserToolsOptions,
+  { getCtx, allow = () => true, allowlist = [], sink, findings, saveState, statePath, flow, snapshots }: BrowserToolsOptions,
 ): ToolDescriptor[] {
   const step = (s: string): void => { sink?.steps?.push(s); };
   const tool = (name: string, def: ToolDef): ToolDescriptor => ({ name, def });
@@ -83,7 +87,8 @@ export function makeBrowserTools(
       parameters: { type: 'object', required: ['ref'], properties: { ref: { type: 'string' } } },
       skipPermission: true,
       handler: async (a) => {
-        const { pwcli } = await getCtx();
+        const { page, pwcli } = await getCtx();
+        await snapshots?.capture(page, `before-click-${a.ref}`); // pre-action DOM for trace-driven heal (#0020)
         const r = await pwcli.cmd('click', a.ref);
         step(`click ${a.ref}`);
         if (r.ok) recordStep(flow, { action: 'click', ...(refMap.get(a.ref) || {}) });
@@ -95,7 +100,8 @@ export function makeBrowserTools(
       parameters: { type: 'object', required: ['ref', 'text'], properties: { ref: { type: 'string' }, text: { type: 'string' }, submit: { type: 'boolean' } } },
       skipPermission: true,
       handler: async (a) => {
-        const { pwcli } = await getCtx();
+        const { page, pwcli } = await getCtx();
+        await snapshots?.capture(page, `before-fill-${a.ref}`); // pre-action DOM for trace-driven heal (#0020)
         const r = await pwcli.cmd('fill', a.ref, a.text, ...(a.submit ? ['--submit'] : []));
         step(`fill ${a.ref} = "${a.text}"${a.submit ? ' +submit' : ''}`);
         if (r.ok) recordStep(flow, { action: 'fill', ...(refMap.get(a.ref) || {}), text: a.text, ...(a.submit ? { submit: true } : {}) });
@@ -107,7 +113,8 @@ export function makeBrowserTools(
       parameters: { type: 'object', required: ['key'], properties: { key: { type: 'string' } } },
       skipPermission: true,
       handler: async (a) => {
-        const { pwcli } = await getCtx();
+        const { page, pwcli } = await getCtx();
+        await snapshots?.capture(page, `before-press-${a.key}`); // pre-action DOM for trace-driven heal (#0020)
         const r = await pwcli.cmd('press', a.key);
         step(`press ${a.key}`);
         if (r.ok) recordStep(flow, { action: 'press', key: a.key });
