@@ -68,6 +68,27 @@ export function listWindows(browser: Browser): Page[] {
 }
 
 /**
+ * OpenFin's own provider/platform windows — NOT the app under test. A real RVM always opens an
+ * internal `openfin-internal://blank` provider window (often FIRST in the page list), so a naive
+ * "first window" default drives the wrong one (verified live, #0024/#0002). These are skipped when
+ * picking a default window; an explicit `window` matcher can still select any window.
+ */
+export function isInternalWindow(url: string): boolean {
+  return !url
+    || url === 'about:blank'
+    || url.startsWith('openfin-internal:')
+    || url.startsWith('chrome://')
+    || url.startsWith('devtools://');
+}
+
+/** The first real APP window (skipping OpenFin's internal windows); falls back to the first window
+ *  of any kind when every window is internal, so attach never returns nothing on an odd RVM state. */
+export function firstAppWindow(browser: Browser): Page | undefined {
+  const pages = listWindows(browser);
+  return pages.find((p) => !isInternalWindow(p.url())) ?? pages[0];
+}
+
+/**
  * The first window whose url and/or title match (both must match when both are given) — for
  * picking a specific OpenFin window when an app opens several. Returns `undefined` (never a wrong
  * window) when nothing matches. A window that throws while being inspected (mid-close/crashed on a
@@ -149,9 +170,11 @@ export async function openSurface(
     // Pick the requested window when an app opens several; else the first existing window.
     const picked = window ? await pickWindow(browser, window) : undefined;
     // A mis-specified matcher would otherwise silently drive the WRONG window — make it diagnosable.
-    if (window && !picked) console.warn(`[qa-focus] openfin window matcher ${JSON.stringify(window)} matched no window — falling back to the first.`);
+    if (window && !picked) console.warn(`[qa-focus] openfin window matcher ${JSON.stringify(window)} matched no window — falling back to the first app window.`);
+    // Default (no matcher): the first APP window, skipping OpenFin's internal provider window
+    // (openfin-internal://blank), which a real RVM lists first — verified live (#0024).
     const page = picked
-      ?? browser.contexts()[0]?.pages()[0]
+      ?? firstAppWindow(browser)
       ?? (await (browser.contexts()[0] ?? (await browser.newContext())).newPage());
     const context = page.context();
     // OpenFin's RVM already exposes this CDP endpoint — the CLI attaches to the same one.

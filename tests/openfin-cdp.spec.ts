@@ -9,7 +9,7 @@
 // in tests/live-openfin.spec.ts.
 import { test, expect, chromium } from '@playwright/test';
 import { createServer } from 'node:net';
-import { openSurface, listWindows, pickWindow } from '../src/provider.mjs';
+import { openSurface, listWindows, pickWindow, isInternalWindow, firstAppWindow } from '../src/provider.mjs';
 import { gradeLocator } from '../extension/qa-focus/ladder.mjs';
 
 // A currently-free ephemeral port per test. Hardcoded absolute ports are a flake/false-pass vector:
@@ -88,6 +88,43 @@ test('openSurface(openfin, {window}) falls back to the FIRST window when no matc
       // Falls back to one of the REAL existing windows (not undefined / an unrelated-browser page).
       // CDP doesn't guarantee contexts()/pages() ordering, so assert membership, not a specific one.
       expect(['Alpha', 'Beta']).toContain(await of.page.title());
+    } finally { await of.close(); }
+  } finally { await host.close(); }
+});
+
+test('isInternalWindow flags OpenFin provider/internal windows, not app pages (#0024)', () => {
+  expect(isInternalWindow('openfin-internal://blank/')).toBe(true);
+  expect(isInternalWindow('about:blank')).toBe(true);
+  expect(isInternalWindow('chrome://version')).toBe(true);
+  expect(isInternalWindow('devtools://devtools/bundled/inspector.html')).toBe(true);
+  expect(isInternalWindow('')).toBe(true);
+  expect(isInternalWindow('http://localhost:5555/index.html')).toBe(false);
+  expect(isInternalWindow('https://app.example.com')).toBe(false);
+});
+
+test('default selection skips an internal (blank) window and picks the real app page (#0024)', async () => {
+  // Reproduces the live-RVM bug: OpenFin lists its openfin-internal://blank provider window first;
+  // a real chromium can't navigate to openfin-internal://, so about:blank stands in (both are
+  // isInternalWindow). The app page gets a real (non-blank) URL — firstAppWindow must pick it.
+  const host = await openSurface({ kind: 'web', cdpPort: await freePort(), channel: process.env.PW_CHANNEL });
+  try {
+    // host.page stays at about:blank (the "internal" window, created first).
+    const app = await host.context.newPage();
+    await app.goto('data:text/html,<title>App</title><h1>App</h1>');
+    const browser = await chromium.connectOverCDP(host.cdpEndpoint!);
+    try {
+      expect(listWindows(browser).length).toBeGreaterThanOrEqual(2);
+      const picked = firstAppWindow(browser);
+      expect(picked).toBeTruthy();
+      expect(isInternalWindow(picked!.url())).toBe(false);     // NOT the blank window
+      expect(picked!.url()).toContain('data:text/html');        // the real app page
+    } finally { await browser.close(); }
+
+    // End-to-end: openSurface(openfin) with no matcher grades inside the app window, not the blank one.
+    const of = await openSurface({ kind: 'openfin', cdpUrl: host.cdpEndpoint! });
+    try {
+      const g = await gradeLocator(of.page, { tier: 'role', role: 'heading', name: 'App' });
+      expect(g.ok).toBe(true);
     } finally { await of.close(); }
   } finally { await host.close(); }
 });

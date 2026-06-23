@@ -39,7 +39,7 @@ Tracked as the **v1 epic** (#0001) in `docs/issues/`.
 | #0007 / #0008 | Copilot plugin / GitHub Action | open (gated on the npm publish) |
 | #0009 | live injection red-team | open (spends model credits) |
 | #0010 | trace-driven self-healing | open |
-| #0002 | **OpenFin** live-verify | **blocked on infra** — Mac mini (macOS RVM) or a Proxmox Windows VM; no Linux runtime |
+| #0002 | **OpenFin** live-verify | **DONE (#0024)** — live-verified on the M4 Mac mini (RVM 44.146.101.4); Rosetta 2 + GUI session required (fixture README) |
 
 **Recommended next:** #0005 (TypeScript migration) — a focused, single-purpose pass. Decision points
 ahead: the OpenFin infra (Mac mini vs Windows VM) and whether to spend credits on the #0009 red-team.
@@ -79,9 +79,12 @@ ahead: the OpenFin infra (Mac mini vs Windows VM) and whether to spend credits o
     CLI action-surface can't attach to Electron (no CDP endpoint) — only the in-process gate is
     verified here; a CLI-free in-process action path for Electron is future work.
   - **openfin** — `chromium.connectOverCDP(CDP_URL)`; multi-window via `contexts()/pages()` —
-    *still needs a real RVM started with remote debugging to live-verify (Windows-centric; not
-    reproducible on the Linux CI VM). Seam + provider path are wired; verify on the work apps.*
-  Remaining: live-verify openfin against a real RVM; multi-window selection helper.
+    **LIVE-VERIFIED** on a real OpenFin RVM (runtime 44.146.101.4) on the M4 Mac mini (#0024,
+    2026-06-24): the gate grades `heading "Todo"` inside an OpenFin window, raw CSS bounces to the
+    accessible tier, and multi-window enumeration works (`tests/live-openfin.spec.ts`, `OPENFIN_LIVE=1`).
+    The live run also caught a real bug — the default window selection drove OpenFin's
+    `openfin-internal://blank` provider window; `firstAppWindow`/`isInternalWindow` now skip it
+    (REGRESSIONS #4). RVM-on-Apple-Silicon needs Rosetta 2 + a GUI session (see fixture README).
 
 - **M3 — Live extension smoke (PARTIALLY DONE).**
   The extension is now the **interactive front door**: `joinSession` registers the shared `browser_*`
