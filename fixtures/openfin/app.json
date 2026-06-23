@@ -1,0 +1,14 @@
+{
+  "runtime": {
+    "version": "stable",
+    "arguments": "--remote-debugging-port=9222"
+  },
+  "startup_app": {
+    "uuid": "qa-focus-openfin-fixture",
+    "name": "qa-focus-openfin-fixture",
+    "url": "http://localhost:5555/index.html",
+    "autoShow": true,
+    "defaultWidth": 640,
+    "defaultHeight": 480
+  }
+}
