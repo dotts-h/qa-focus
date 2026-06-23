@@ -48,3 +48,6 @@ never a cycle).
 | [0022](0022-sandbox-run-spec-isolate-model-authored-spec-execution.md) | Sandbox run_spec — isolate model-authored spec execution | closed | high | 0019 | adr:0010 |
 | [0023](0023-live-model-driven-prompt-injection-red-team-on-a-hostile-fixture-page.md) | Live model-driven prompt-injection red-team on a hostile fixture page | closed | high | 0019 | |
 | [0024](0024-openfin-live-rvm-verify-connectovercdp-on-real-runtime.md) | OpenFin live RVM verify (connectOverCDP on real runtime) | closed | medium | 0019 | regression:4 |
+| [0025](0025-epic-live-verify-the-autonomous-loop-end-to-end-across-surfaces.md) | Epic: live-verify the autonomous loop end-to-end across surfaces | open | medium | — | |
+| [0026](0026-live-autonomous-explore-to-codify-run-on-a-real-electron-window-in-process-driver-xvfb.md) | Live autonomous explore to codify run on a real Electron window (in-process driver, xvfb) | closed | medium | 0025 | adr:0005; regression:5; issues:0027 |
+| [0027](0027-surface-aware-authored-specs-codifier-emits-an-electron-executing-spec-electron-launch-not-just-web.md) | Surface-aware authored specs — codifier emits an Electron-executing spec (_electron.launch), not just web | open | medium | 0025 | |

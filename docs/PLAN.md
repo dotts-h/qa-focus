@@ -75,9 +75,17 @@ ahead: the OpenFin infra (Mac mini vs Windows VM) and whether to spend credits o
     **LIVE-VERIFIED.** `fixtures/electron/` (a real Electron app) + `tests/live-electron.spec.ts`
     (`ELECTRON_LIVE=1 xvfb-run -a …`): the gate grades a role+name button and bounces raw CSS to
     the accessible tier inside a real Electron window, identical to web. Gotcha: launch the app
-    **directory** (package.json `main`), not a bare `main.js` (REGRESSIONS #1). Note: the explorer's
-    CLI action-surface can't attach to Electron (no CDP endpoint) — only the in-process gate is
-    verified here; a CLI-free in-process action path for Electron is future work.
+    **directory** (package.json `main`), not a bare `main.js` (REGRESSIONS #1). The explorer's CLI
+    action-surface can't attach to Electron (no CDP endpoint), so it uses the **in-process action
+    driver** (`src/inproc-driver.mts`, ADR 0005) instead — and the **full autonomous explore→codify
+    loop is now LIVE-VERIFIED on Electron** (#0026, 2026-06-23): a real Copilot model snapshotted +
+    acted by ref through the in-process driver on `fixtures/electron/` under `xvfb`, the codifier
+    authored a gate-clean spec whose role+name locators were validated against the live Electron
+    window. The live run caught + fixed a real production bug — the in-process snapshot threw
+    `__name is not defined` under the `tsx`/esbuild runtime the binaries use (REGRESSIONS #5).
+    **Remaining (follow-up #0027):** the codifier authors a *web-shaped* spec (`{ page }` + `goto`)
+    regardless of surface, so the executed `run_spec` runs on web; a surface-aware authored-spec
+    template that executes against Electron (`_electron.launch`) is the next step.
   - **openfin** — `chromium.connectOverCDP(CDP_URL)`; multi-window via `contexts()/pages()` —
     **LIVE-VERIFIED** on a real OpenFin RVM (runtime 44.146.101.4) on the M4 Mac mini (#0024,
     2026-06-24): the gate grades `heading "Todo"` inside an OpenFin window, raw CSS bounces to the
