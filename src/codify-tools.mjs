@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { gradeLocator, render } from '../extension/qa-focus/ladder.mjs';
 import { lintSpec, renderViolations } from './standards.mjs';
+import { healLocator } from './healer.mjs';
 
 const slug = (s) => String(s || 'flow').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'flow';
 
@@ -66,6 +67,45 @@ export function makeCodifyTools({ getCtx, root, facts = [] }) {
         writeFileSync(file, a.code);
         const warns = violations.filter((v) => v.warn);
         return `wrote ${file}${warns.length ? `\n(advisory:\n${renderViolations(warns)})` : ''} — now call run_spec to verify it.`;
+      },
+    }),
+    tool('heal_locator', {
+      description: 'Recover a DRIFTED locator after a run_spec failure: given the locator that no longer ' +
+        'resolves on the CURRENT page (same shape as propose_locator: tier/role/name), attempt a gate-verified ' +
+        'replacement. Returns a NEW locator flagged needs-confirmation, or refuses when recovery is ambiguous. ' +
+        'It NEVER silently rewrites a test to pass — you must confirm the proposed element is the right one before using it.',
+      parameters: {
+        type: 'object',
+        required: ['tier'],
+        properties: {
+          tier: { enum: ['role', 'label', 'placeholder', 'text', 'altText', 'title', 'testid', 'css', 'xpath'] },
+          role: { type: 'string' }, name: { type: 'string' }, frame: { type: 'string' },
+        },
+      },
+      skipPermission: true,
+      handler: async (p) => {
+        const { page } = await getCtx();
+        const r = await healLocator(page, p);
+        if (!r.healed) return { textResultForLlm: `NO HEAL: ${r.reason}`, resultType: 'failure' };
+        return `HEAL CANDIDATE (confirm it is the right element before using):\n${r.locator}\n(was: ${r.was}; tier ${r.tier})`;
+      },
+    }),
+    tool('write_pom', {
+      description: 'Write a Page Object class under tests/authored/<name>.pom.ts — a class whose members are gate-ACCEPTED ' +
+        'locators (role + name) and whose methods wrap actions/assertions, so a durable flow is reusable and reads at one ' +
+        'altitude. Linted to the SAME Playwright standards as specs (no hard sleeps / networkidle / raw handles / XPath) and ' +
+        'REJECTED if it violates them. Then import it from your spec and call run_spec.',
+      parameters: { type: 'object', required: ['name', 'code'], properties: { name: { type: 'string' }, code: { type: 'string', description: 'full .pom.ts source (an exported class)' } } },
+      handler: async (a) => {
+        const { ok, violations } = lintSpec(a.code);
+        if (!ok) return { textResultForLlm: `REJECTED — page object violates Playwright standards:\n${renderViolations(violations.filter((v) => !v.warn))}\nFix and resubmit.`, resultType: 'failure' };
+        const dir = join(root, 'tests', 'authored');
+        mkdirSync(dir, { recursive: true });
+        const name = slug(a.name);
+        const file = join(dir, `${name}.pom.ts`);
+        writeFileSync(file, a.code);
+        const warns = violations.filter((v) => v.warn);
+        return `wrote ${file}${warns.length ? `\n(advisory:\n${renderViolations(warns)})` : ''} — import it from your spec: import { /* YourPage */ } from './${name}.pom'; then call run_spec.`;
       },
     }),
     tool('run_spec', {

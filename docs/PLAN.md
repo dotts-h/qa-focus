@@ -32,11 +32,17 @@ the two distinct jobs: an **explorer** that discovers (findings a human verifies
 - **M2 — Browser-provider abstraction (web | electron | openfin). SEAM BUILT.**
   `src/provider.mjs` exposes `openSurface({kind})`; the explorer targets any surface via `SURFACE=`.
   - **web** — `chromium.launch()` — *tested.*
-  - **electron** — `_electron.launch({ args:[main] })`; windows are Pages, gate works unchanged —
-    *needs a real Electron app to live-verify.*
+  - **electron** — `_electron.launch({ args:[appDir] })`; windows are Pages, gate works unchanged —
+    **LIVE-VERIFIED.** `fixtures/electron/` (a real Electron app) + `tests/live-electron.spec.ts`
+    (`ELECTRON_LIVE=1 xvfb-run -a …`): the gate grades a role+name button and bounces raw CSS to
+    the accessible tier inside a real Electron window, identical to web. Gotcha: launch the app
+    **directory** (package.json `main`), not a bare `main.js` (REGRESSIONS #1). Note: the explorer's
+    CLI action-surface can't attach to Electron (no CDP endpoint) — only the in-process gate is
+    verified here; a CLI-free in-process action path for Electron is future work.
   - **openfin** — `chromium.connectOverCDP(CDP_URL)`; multi-window via `contexts()/pages()` —
-    *needs the RVM started with remote debugging to live-verify.*
-  Remaining: live-verify electron + openfin against real desktop apps; multi-window selection helper.
+    *still needs a real RVM started with remote debugging to live-verify (Windows-centric; not
+    reproducible on the Linux CI VM). Seam + provider path are wired; verify on the work apps.*
+  Remaining: live-verify openfin against a real RVM; multi-window selection helper.
 
 - **M3 — Live extension smoke (PARTIALLY DONE).**
   The extension is now the **interactive front door**: `joinSession` registers the shared `browser_*`
@@ -53,11 +59,26 @@ the two distinct jobs: an **explorer** that discovers (findings a human verifies
   extension instead of calling the tools; the underlying tools, gate, and codify→run are independently
   verified working).
 
-- **M4 — Explorer → codifier handoff.**
-  Turn a discovered flow (explorer artifact) into a gated, authored spec automatically.
+- **M4 — Explorer → codifier handoff (MECHANISM DONE).**
+  The explorer now emits a structured, machine-readable flow (`artifacts/explore-flow.json`):
+  DURABLE semantic steps (`goto`/`click`/`fill`/`press`/`expect` by accessible role+name, parsed
+  from each snapshot's `[ref=eN]` → role/name — never the ephemeral refs themselves). The codifier
+  consumes it with `FLOW=artifacts/explore-flow.json`, which seeds the GOAL/START_URL and prepends
+  the discovered recipe to the model's prompt. Control-first: the flow is a SEED to re-walk and
+  gate-harden, never trusted output (the gate still grades every locator live). New `src/flow.mjs`,
+  wired through the shared `browser-tools.mjs`; deterministic `tests/flow.spec.ts` (5) + a no-model
+  end-to-end smoke verified the full pwcli→gate→flow path. **Remaining:** one live model-driven
+  `explore | codify` chain on the fixture to confirm the seeded codifier authors a green spec.
 
-- **M5 — Full authoring pipeline.**
-  PLAN → LOCATE → ASSERT → VERIFY around the gate; trace-driven healer on failure.
+- **M5 — Full authoring pipeline. SELF-HEALING STARTED.**
+  PLAN → LOCATE → ASSERT → VERIFY around the gate; healer on failure. A conservative,
+  gate-verified **page-based healer** is built (`src/healer.mjs`, `heal_locator` codify tool):
+  when an authored locator stops resolving, it proposes a replacement ONLY when the gate cleanly
+  accepts a unique candidate (role-drift with a stable name → re-roled locator; name-drift on a
+  unique element → role-only), refuses ambiguous recovery, and NEVER silently green-washes a test
+  (every heal is flagged needs-confirmation). Tests: `tests/healer.spec.ts` (4). **Next:** a
+  *trace-driven* healer that uses the failure trace's DOM to recover when the page alone is
+  ambiguous (the limitation the page-based healer documents).
 
 - **M6 — Packaging & distribution.**
   Copilot **plugin** (`plugin.json`) for one-line installs; CI integration; internal sharing.
@@ -85,10 +106,19 @@ Driven by a real interactive session log + off-pool research (agy/Gemini). See `
 
 - ~~Explorer is token-heavy and nondeterministic — needs a step budget + circuit breakers.~~
   DONE — `STEP_BUDGET` (default 60) caps tool calls in `bin/explore.mjs`.
-- Codifier still emits flat specs; fixture-injected POMs + `storageState` auth reuse are the next
-  production step (research-recommended). See `docs/STANDARDS.md`.
+- ~~Codifier still emits flat specs; fixture-injected POMs + `storageState` auth reuse are the next
+  production step (research-recommended).~~ DONE — `write_pom` authors a linted Page Object under
+  `tests/authored/<name>.pom.ts` (held to the same locator/standards gate as specs); authored specs
+  import `tests/authored/fixtures.ts` to reuse a captured login (`save_auth` → storageState) and fall
+  back to unauthenticated when none exists (`src/authored.mjs` `resolveStorageState`). Worked example:
+  `tests/authored/todo.pom.ts` + `todo-pom.spec.ts` (green under `RUN_AUTHORED=1`). See `docs/STANDARDS.md`.
 - OpenFin requires the runtime started with remote debugging enabled; confirm that's possible on
   the work apps.
-- Prompt-injection defense (allowlist + tool-gating) needs an adversarial validation pass.
+- ~~Prompt-injection defense (allowlist + tool-gating) needs an adversarial validation pass.~~
+  DETERMINISTIC LAYER DONE — `tests/injection.spec.ts` asserts both layers as code: the allowlist
+  rejects an injected exfil host/lookalike, `browser_goto` denies an off-allowlist URL even when
+  "tricked" into calling it, and the gated toolset is proven to expose NO fs/shell/network
+  capability (capability-absence, not just restriction). Remaining: a live model-driven red-team on
+  a hostile fixture page (needs quota).
 - Coordinate/CDP-input clicking is a deliberate *last-resort* for canvas/non-DOM only — accessible
   role+name actions stay primary.

@@ -20,7 +20,10 @@ export const STANDARDS_PROMPT =
   'unless the surface was opened with FORCE_OPEN_SHADOW=1.\n' +
   '• ANGULAR: Material exposes ARIA roles (combobox/menuitem/dialog). mat-select/mat-dialog/tooltip render in .cdk-overlay-container at <body> ' +
   '(not under the trigger) — find them at the document level. Virtual-scroll lists only render visible rows — scroll the viewport to reveal more.\n' +
-  '• FLOW: drive with browser_* (act on refs from browser_snapshot); harden with propose_locator → write_spec → run_spec.';
+  '• STRUCTURE: for a reusable flow, author a Page Object with write_pom (a class wrapping gate-accepted locators + actions), ' +
+  'then a thin spec that imports it. For an AUTHENTICATED app, log in once and call save_auth, then import { test, expect } ' +
+  "from './fixtures' in the spec so the captured storageState is reused — never script the login inside every test.\n" +
+  '• FLOW: drive with browser_* (act on refs from browser_snapshot); harden with propose_locator → (write_pom?) → write_spec → run_spec.';
 
 const RULES = [
   {

@@ -10,4 +10,4 @@ createServer((req, res) => {
   const p = req.url === '/' ? '/index.html' : req.url.split('?')[0];
   try { res.end(readFileSync(join(HERE, '.' + p))); }
   catch { res.statusCode = 404; res.end('not found'); }
-}).listen(PORT, () => console.log(`complex fixture on http://localhost:${PORT}`));
+}).listen(PORT, function () { console.log(`complex fixture on http://localhost:${this.address().port}`); });

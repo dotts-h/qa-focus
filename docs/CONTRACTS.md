@@ -19,7 +19,10 @@
 | `openSurface({kind,channel,…,storageState})` | → `{ kind, context, page, cdpEndpoint, saveState, close }` across web/electron/openfin | **stable** | `src/provider.mjs` · [ADR 0001](adr/0001-no-mcp-use-playwright-cli.md) |
 | `makeAllowlist(patterns)` / `guardContext(ctx, allow)` | URL predicate + network-layer navigation guard | **stable** | `src/allowlist.mjs` |
 | `lintSpec(source)` | → `{ ok, violations: [{ rule, line, snippet, why }] }` (Playwright standards) | **stable** | `src/standards.mjs` |
+| Authored auth reuse | `resolveStorageState(path, exists?)` → reuse capture iff it exists, else `undefined`; authored specs import `tests/authored/fixtures.ts` (`test`/`expect`) for storageState reuse + unauth fallback | **stable** | `src/authored.mjs`, `tests/authored/fixtures.ts` |
+| Locator healer (M5) | `healLocator(page, broken)` → `{ healed:true, needsConfirmation, proposal, locator, tier }` (gate-verified replacement) or `{ healed:false, reason }`. NEVER silently rewrites a passing test; refuses ambiguous recovery. Wired as the `heal_locator` codify tool. | **stable** | `src/healer.mjs` |
 | Evidence artifact | `sink { steps, console, network, shots, thirdPartyBlocked }` + `finding { severity, title, detail, source }` → Markdown | **stable** | `src/evidence.mjs` |
+| Flow artifact (explorer→codifier) | `{ goal, startUrl, surface, steps[] }`; `step = { action: goto\|click\|fill\|press\|expect, role?, name?, text?, url?, key?, frame?, submit? }` — DURABLE accessible steps (not refs). Explorer writes `artifacts/explore-flow.json`; codifier reads it via `FLOW=…` as a seed. A seed to re-walk + gate-harden, **never** trusted output. | **stable** | `src/flow.mjs` (`newFlow`/`parseSnapshotRefs`/`recordStep`/`flowToSeed`/`isFlow`) |
 
 ## Provides (consumed by other repos)
 

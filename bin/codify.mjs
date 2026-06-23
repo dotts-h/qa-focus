@@ -14,9 +14,11 @@
 //
 // Env: COPILOT_CLI, COPILOT_MODEL, GOAL, START_URL, ALLOWLIST (csv), SPEC_NAME,
 //      PW_CHANNEL, CDP_PORT, STEP_BUDGET, HEADED, SURFACE, CDP_URL, FORCE_OPEN_SHADOW.
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createGatedSession } from '../src/harness.mjs';
+import { isFlow, flowToSeed } from '../src/flow.mjs';
 import { openSurface } from '../src/provider.mjs';
 import { makeAllowlist, guardContext } from '../src/allowlist.mjs';
 import { newSink, attachCollectors } from '../src/evidence.mjs';
@@ -29,8 +31,13 @@ import { STANDARDS_PROMPT } from '../src/standards.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
 const CLI = resolveCopilotCli();
-const START_URL = process.env.START_URL || 'http://localhost:3000';
-const GOAL = process.env.GOAL || 'Harden the main add-to-cart flow into a durable Playwright test.';
+// M4 handoff: FLOW=path/to/explore-flow.json seeds the codifier with the explorer's
+// discovered recipe (steps + start URL + goal). It's a SEED to re-walk and gate-harden,
+// never trusted output — the gate still grades every locator live.
+const FLOW = process.env.FLOW ? JSON.parse(readFileSync(process.env.FLOW, 'utf8')) : null;
+if (process.env.FLOW && !isFlow(FLOW)) throw new Error(`FLOW file ${process.env.FLOW} is not a valid flow (no steps[])`);
+const START_URL = process.env.START_URL || FLOW?.startUrl || 'http://localhost:3000';
+const GOAL = process.env.GOAL || FLOW?.goal || 'Harden the main add-to-cart flow into a durable Playwright test.';
 const SPEC_NAME = process.env.SPEC_NAME || 'authored-flow';
 const ALLOWLIST = (process.env.ALLOWLIST || 'localhost').split(',');
 const CDP_PORT = Number(process.env.CDP_PORT || 9222);
@@ -76,10 +83,12 @@ async function main() {
     },
   });
 
-  log('goal:', GOAL, '| spec:', SPEC_NAME);
+  log('goal:', GOAL, '| spec:', SPEC_NAME, FLOW ? `| seeded from FLOW (${FLOW.steps.length} steps)` : '');
+  const seed = FLOW ? flowToSeed(FLOW) + '\n\n' : '';
   const res = await session.sendAndWait(
     {
       prompt:
+        seed +
         `${GOAL}\n\n` +
         `Produce a durable Playwright test named "${SPEC_NAME}". Work in this order:\n` +
         '1. WALK the flow first with browser_snapshot + browser_click / browser_fill / browser_goto, ' +
