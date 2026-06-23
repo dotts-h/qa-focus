@@ -62,6 +62,10 @@ Exact commands CI enforces (keep this list in lockstep with the CI workflow):
 > Exact, copy-pasteable facts about this repo's toolchain — fill in as discovered.
 
 - Lint: `npm run lint` · Test: `npm test`
+- **Browser channels** (`PW_CHANNEL`): the whole stack is channel-parameterised. Verified green on
+  the bundled **chromium** (`PW_CHANNEL=chromium`, the default) and the **branded Chrome**
+  (`PW_CHANNEL=chrome`; install with `npx playwright install chrome`). Target apps usually run in
+  branded Chrome, so prefer `chrome` for live runs. Electron/OpenFin are separate surfaces (`SURFACE=`).
 - *(add toolchain paths, required versions, and known sandbox quirks here)*
 
 ## Naming & style
