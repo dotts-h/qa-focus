@@ -9,15 +9,13 @@ deterministic gate verifies every step. Uses the **installed `copilot` login** (
 **Read first:** `docs/ARCHITECTURE.md`, `docs/PLAN.md`, `docs/adr/0001-no-mcp-use-playwright-cli.md`.
 
 ## Standing decisions (don't relitigate without cause)
-- **No MCP, ever.** `@playwright/mcp` bloats context (~4× tokens: inline tool schemas + aria trees).
-  Use the `@playwright/cli` model (disk snapshots + element refs) for browser actions — **wrapped in
-  gated `defineTool` tools** so the model never gets raw shell (preserves the prompt-injection
-  defense). See ADR 0001.
-- **The gate + codifier stay in-process** (Playwright API). The locator-priority gate
-  (`extension/qa-focus/ladder.mjs`) grades locators against a live `Page` — that's our non-commodity
-  value, not a browser command.
-- **Tool-gating is the security model.** Explorer holds only browser-action tools (no fs/shell/net)
-  + a URL allowlist (`src/allowlist.mjs`).
+- **No MCP.** `@playwright/mcp` bloats context (~4× tokens). Use the `@playwright/cli` model (disk
+  snapshots + element refs), **wrapped in gated `defineTool` tools** — model never gets raw shell.
+  Full rationale: ADR 0001 + `docs/ARCHITECTURE.md`.
+- **Tool-gating is the security model.** Explorer holds only browser-action tools + URL allowlist
+  (`src/allowlist.mjs`). Hard leash lives in `src/harness.mjs`; extension is soft-leash only
+  (can't remove copilot's built-in tools — use `bin/interactive.mjs` when enforcement matters).
+  Full threat model: `docs/SECURITY.md`.
 - **Accessible actions first** (role+name). Coordinate/CDP-input clicking is a canvas-only last resort.
 - **Surfaces:** web (`chromium`), Electron (`_electron.launch`), OpenFin (`connectOverCDP`) via
   `src/provider.mjs`. Electron deep-access needs the in-process `_electron` adapter (CLI can't).
@@ -32,36 +30,10 @@ deterministic gate verifies every step. Uses the **installed `copilot` login** (
 - `PW_CHANNEL=chromium npm test` — deterministic gate + allowlist proofs (no model, no quota)
 - `GOAL="…" node bin/explore.mjs` / `GOAL="…" SPEC_NAME="…" node bin/codify.mjs` — live, uses the installed copilot login
 
-## Immediate next task — finish M3 interactive smoke (see PLAN)
-**Done since M1.5:** browser tools factored into `src/browser-tools.mjs` (one source of truth, lazy
-`getCtx`), shared by `bin/explore.mjs` and the **interactive extension**. The extension
-(`extension/qa-focus/extension.mjs`) is the interactive front door: `browser_*` + `propose_locator`
-(graded vs the current page) + `write_spec`/`run_spec` (authored test → real `playwright test` gate),
-one live browser opened lazily. `src/copilot-path.mjs` resolves the copilot binary portably (fixes the
-mini's Homebrew path). Verified: extension **loads + registers** in a copilot session.
-
-**Gotchas to remember:**
-- Copilot CLI extensions are **experimental** in 1.0.63 → must launch `copilot --experimental`.
-  Discovery scans `.github/extensions/` for **real directories** (symlinks are skipped); we ship a
-  one-line shim dir `.github/extensions/qa-focus/` that re-imports the canonical extension. In
-  non-interactive `-p` mode, project extensions also need `GITHUB_COPILOT_PROMPT_MODE_EXTENSIONS=true`.
-- An extension **cannot remove** copilot's built-in tools (fs/shell) — interactive leash = human
-  approval. The hard tool-gating leash only exists in the standalone harness (`bin/explore.mjs`).
-
-**Production hardening (2026-06-22, see docs/STANDARDS.md + PLAN):**
-- Complex surfaces: gate handles **iframes** (`frame`→frameLocator) + **open shadow DOM** (auto-pierced);
-  **closed** shadow via `FORCE_OPEN_SHADOW=1`. Standards enforced as code (`src/standards.mjs` linter +
-  `STANDARDS_PROMPT`). Shared `browser-tools.mjs` + `codify-tools.mjs`.
-- **Gate-bypass fixed:** a real session log showed the model shelling around the gate in a Copilot
-  *extension* (extensions can't cage built-in tools). **`bin/interactive.mjs`** is the enforcing
-  interactive path (hard leash, stdin REPL) — verified end-to-end. The extension stays as the
-  soft-leash convenience path.
-- Explorer `STEP_BUDGET` (default 60) circuit breaker.
-
-**Next:** (1) codifier → fixture-injected POMs + `storageState` auth reuse (research-recommended).
-(2) M2 — live-verify electron/openfin surfaces. (3) finish M3 extension smoke at a TTY.
+## Status
+Current state and next task: see `docs/PLAN.md` (v1 progress table + milestone log).
 
 ## Norms
-Verify on a real signal (run the tests/app — don't guess twice). Surgical changes. Don't `git
-commit` the memory store. **Public repo:** github.com/dotts-h/qa-focus (Apache-2.0) — no secrets,
-infra details, or internal hostnames in committed files. Commit/push only when asked.
+Surgical changes; verify on a real signal (run the tests — don't guess twice). See `docs/CONVENTIONS.md`
+for the full coding constitution. **Public repo** (Apache-2.0): no secrets, infra details, or internal
+hostnames in committed files. Commit/push only when asked.

@@ -48,6 +48,8 @@ const GOAL = process.env.GOAL || FLOW?.goal || 'Harden the main add-to-cart flow
 const SPEC_NAME = process.env.SPEC_NAME || 'authored-flow';
 const ALLOWLIST = (process.env.ALLOWLIST || 'localhost').split(',');
 const CDP_PORT = Number(process.env.CDP_PORT || 9222);
+// Live run stream is default-on; silence it for piped/CI runs (#0013).
+const QUIET = !!process.env.QA_QUIET || process.argv.includes('--quiet');
 const log = (...a: unknown[]): void => console.log('[codify]', ...a);
 
 async function main(): Promise<void> {
@@ -80,9 +82,10 @@ async function main(): Promise<void> {
     : await attachInProcess({ page, session: 'qa-focus-codify' });
 
   // The control model (hard leash + step budget + recency) lives in src/harness.mts (ADR 0002).
-  const { session, client } = await createGatedSession({
+  const { session, client, detachStream } = await createGatedSession({
     cli: CLI,
     model: process.env.COPILOT_MODEL,
+    quiet: QUIET, // stream the model's reasoning/output/tool calls live unless silenced (#0013)
     tools: [
       ...makeBrowserTools({ getCtx, allow, allowlist: ALLOWLIST, sink, findings, saveState: surface.saveState, statePath: process.env.STORAGE_STATE }),
       ...makeCodifyTools({ getCtx, root: ROOT, facts }),
@@ -116,11 +119,13 @@ async function main(): Promise<void> {
     },
     600_000, // the full walk→propose→write→run→fix loop needs more than 5 min on a real app
   );
+  detachStream(); // close the live stream before the summary prints
 
   const r: any = res;
   const text = typeof r === 'string' ? r : r?.text ?? r?.content ?? r?.data?.content ?? '';
-  log('--- model summary ---');
-  if (text) console.log(text);
+  // When streaming (not quiet) the final answer already rendered live — don't reprint it or a
+  // bodyless "model summary" header; only the quiet/piped path needs the summary text in stdout.
+  if (text && QUIET) { log('--- model summary ---'); console.log(text); }
   log('accepted locators:', facts.length);
   for (const f of facts) console.log('  •', f);
 

@@ -11,6 +11,7 @@
 import { CopilotClient, RuntimeConnection, ToolSet, defineTool, approveAll } from '@github/copilot-sdk';
 import type { CopilotClient as CopilotClientType, CopilotSession } from '@github/copilot-sdk';
 import type { ToolDescriptor } from './tool.mjs';
+import { attachStreamRenderer } from './stream.mjs';
 
 /** Options for `createGatedSession` — the hard leash (cage + deny + budget). */
 export interface GatedSessionOptions {
@@ -24,19 +25,29 @@ export interface GatedSessionOptions {
   stepBudget?: number;
   /** onUserPromptSubmitted hook () => ({ additionalContext }) | undefined. */
   recency?: (...args: any[]) => any;
+  /**
+   * Silence the live run stream (#0013). Default false → the model's reasoning, output, and tool
+   * calls render to stdout as they happen (Copilot-CLI style). True for piped/CI runs (`--quiet` /
+   * `QA_QUIET`): no event subscription, no writes, and `streaming` left off to save the deltas.
+   */
+  quiet?: boolean;
 }
 
-/** The created session, its client, and the set of allowed tool names. */
+/** The created session, its client, the set of allowed tool names, and the live-stream controls. */
 export interface GatedSession {
   session: CopilotSession;
   client: CopilotClientType;
   toolNames: Set<string>;
+  /** Terminate the current run-stream block (trailing newline) at a turn boundary (no-op when quiet). */
+  flushStream: () => void;
+  /** Flush + unsubscribe the live run-stream renderer. Call once at teardown (no-op when quiet). */
+  detachStream: () => void;
 }
 
 /**
  * Create a session whose entire capability surface is the given gated tools.
  */
-export async function createGatedSession({ cli, model, tools, stepBudget, recency }: GatedSessionOptions): Promise<GatedSession> {
+export async function createGatedSession({ cli, model, tools, stepBudget, recency, quiet }: GatedSessionOptions): Promise<GatedSession> {
   const defined = tools.map(({ name, def }) => defineTool(name, def));
   const toolNames = new Set(defined.map((t) => t.name).filter(Boolean));
   let steps = 0;
@@ -46,6 +57,7 @@ export async function createGatedSession({ cli, model, tools, stepBudget, recenc
     ...(model ? { model } : {}),
     tools: defined,
     availableTools: new ToolSet().addCustom('*'), // the leash: no fs/shell/network tools exist
+    streaming: !quiet, // emit incremental reasoning/message deltas for the live run stream (#0013)
     onPermissionRequest: approveAll,
     hooks: {
       ...(recency ? { onUserPromptSubmitted: recency } : {}),
@@ -60,5 +72,10 @@ export async function createGatedSession({ cli, model, tools, stepBudget, recenc
       },
     },
   });
-  return { session, client, toolNames };
+
+  // The live run stream rides this one seam (ADR 0002), so all three runners get it for free and
+  // #0014 (cost) can ride the same tap. The renderer is pure (src/stream.mts); this only wires it.
+  const { flush: flushStream, detach: detachStream } = attachStreamRenderer(session, { quiet });
+
+  return { session, client, toolNames, flushStream, detachStream };
 }

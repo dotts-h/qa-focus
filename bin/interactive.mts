@@ -41,6 +41,8 @@ const CLI = resolveCopilotCli();
 const START_URL = process.env.START_URL || 'http://localhost:3000';
 const ALLOWLIST = (process.env.ALLOWLIST || 'localhost').split(',');
 const CDP_PORT = Number(process.env.CDP_PORT || 9222);
+// Live run stream is default-on; silence it for piped runs (#0013).
+const QUIET = !!process.env.QA_QUIET || process.argv.includes('--quiet');
 const log = (...a: unknown[]): void => console.log('[qa]', ...a);
 
 async function main(): Promise<void> {
@@ -83,9 +85,10 @@ async function main(): Promise<void> {
 
   // The control model (hard leash + recency) lives in src/harness.mts (ADR 0002). No step
   // budget here — turns are human-paced over stdin, so the human is the circuit-breaker.
-  const { session, client } = await createGatedSession({
+  const { session, client, flushStream, detachStream } = await createGatedSession({
     cli: CLI,
     model: process.env.COPILOT_MODEL,
+    quiet: QUIET, // stream the model's reasoning/output/tool calls live unless silenced (#0013)
     tools: [
       ...makeBrowserTools({ getCtx, allow, allowlist: ALLOWLIST, sink, findings, saveState: surface.saveState, statePath: process.env.STORAGE_STATE }),
       ...makeCodifyTools({ getCtx, root: ROOT, facts }),
@@ -115,7 +118,9 @@ async function main(): Promise<void> {
       const res = await session.sendAndWait({ prompt: goal }, 240_000);
       const r: any = res;
       const text = typeof r === 'string' ? r : r?.text ?? r?.content ?? r?.data?.content ?? '';
-      if (text) console.log(`\n${text}\n`);
+      // When streaming (not quiet) the answer already rendered live — flush the turn's open block
+      // (one trailing newline, renderer reset for the next turn); only the quiet/piped path reprints.
+      if (QUIET) { if (text) console.log(`\n${text}\n`); } else flushStream();
       if (findings.length > before) {
         log(`findings (+${findings.length - before}):`);
         for (const f of findings.slice(before)) console.log(`  - [${f.severity || '?'}] ${f.title}`);
@@ -126,6 +131,7 @@ async function main(): Promise<void> {
     rl.prompt();
   }
 
+  detachStream();
   await saveArtifact();
   log('artifact: artifacts/interactive-report.md');
   await pw.detach().catch(() => {});
