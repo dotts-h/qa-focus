@@ -5,6 +5,8 @@
 // self-certified).
 import type { Page } from 'playwright';
 import type { AllowPredicate } from './allowlist.mjs';
+import { formatUsage } from './cost.mjs';
+import type { UsageSummary } from './cost.mjs';
 
 /** A reported bug/usability/a11y finding (axe = tool-verified; model = human-verify). */
 export interface Finding {
@@ -47,9 +49,10 @@ export function attachCollectors(page: Page, sink: Sink, allow: AllowPredicate =
 }
 
 export function renderArtifact(
-  { goal, sink, findings = [], tracePath }: { goal: string; sink: Sink; findings?: Finding[]; tracePath?: string },
+  { goal, sink, findings = [], tracePath, usage }: { goal: string; sink: Sink; findings?: Finding[]; tracePath?: string; usage?: UsageSummary },
 ): string {
   const L = ['# QA Explore artifact', '', `**Goal:** ${goal}`, ''];
+  if (usage) L.push('## Usage & cost', '```', ...formatUsage(usage), '```', '');
   L.push('## Steps', ...(sink.steps.length ? sink.steps.map((s, i) => `${i + 1}. ${s}`) : ['_none_']), '');
   if (findings.length) {
     // Dedupe by title (axe re-runs across pages repeat the same violation type) and rank

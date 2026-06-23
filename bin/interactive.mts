@@ -31,6 +31,7 @@ import { makeBrowserTools } from '../src/browser-tools.mjs';
 import { makeCodifyTools } from '../src/codify-tools.mjs';
 import { resolveCopilotCli } from '../src/copilot-path.mjs';
 import { STANDARDS_PROMPT } from '../src/standards.mjs';
+import { renderCostSummary } from '../src/cost.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 // Specs, artifacts and the run_spec gate belong in the USER's project (their playwright.config),
@@ -43,6 +44,8 @@ const ALLOWLIST = (process.env.ALLOWLIST || 'localhost').split(',');
 const CDP_PORT = Number(process.env.CDP_PORT || 9222);
 // Live run stream is default-on; silence it for piped runs (#0013).
 const QUIET = !!process.env.QA_QUIET || process.argv.includes('--quiet');
+// Optional credits→$ rate (USD per AI-Credit) for the cost summary's $ estimate (#0014).
+const AIU_USD = Number(process.env.QA_AIU_USD) || undefined;
 const log = (...a: unknown[]): void => console.log('[qa]', ...a);
 
 async function main(): Promise<void> {
@@ -85,7 +88,7 @@ async function main(): Promise<void> {
 
   // The control model (hard leash + recency) lives in src/harness.mts (ADR 0002). No step
   // budget here — turns are human-paced over stdin, so the human is the circuit-breaker.
-  const { session, client, flushStream, detachStream } = await createGatedSession({
+  const { session, client, flushStream, detachStream, getUsage } = await createGatedSession({
     cli: CLI,
     model: process.env.COPILOT_MODEL,
     quiet: QUIET, // stream the model's reasoning/output/tool calls live unless silenced (#0013)
@@ -103,7 +106,7 @@ async function main(): Promise<void> {
     mkdirSync(join(ROOT, 'artifacts'), { recursive: true });
     const tracePath = join(ROOT, 'artifacts/interactive-trace.zip');
     await context.tracing.stop({ path: tracePath }).catch(() => {});
-    writeFileSync(join(ROOT, 'artifacts/interactive-report.md'), renderArtifact({ goal: 'interactive session', sink, findings, tracePath }));
+    writeFileSync(join(ROOT, 'artifacts/interactive-report.md'), renderArtifact({ goal: 'interactive session', sink, findings, tracePath, usage: getUsage({ creditsToUsd: AIU_USD }) }));
   };
 
   log(`ready — ${surface.kind} surface, allowlist [${ALLOWLIST.join(', ')}]${process.env.HEADED ? ', HEADED' : ''}. Type a goal; "exit" to finish.`);
@@ -132,6 +135,7 @@ async function main(): Promise<void> {
   }
 
   detachStream();
+  console.log('\n' + renderCostSummary(getUsage({ creditsToUsd: AIU_USD }))); // the session's total cost (#0014)
   await saveArtifact();
   log('artifact: artifacts/interactive-report.md');
   await pw.detach().catch(() => {});

@@ -30,6 +30,7 @@ import { makeBrowserTools } from '../src/browser-tools.mjs';
 import { makeCodifyTools } from '../src/codify-tools.mjs';
 import { resolveCopilotCli } from '../src/copilot-path.mjs';
 import { STANDARDS_PROMPT } from '../src/standards.mjs';
+import { renderCostSummary } from '../src/cost.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 // The codifier writes specs and runs the `playwright test` gate in the USER's project (their
@@ -50,6 +51,8 @@ const ALLOWLIST = (process.env.ALLOWLIST || 'localhost').split(',');
 const CDP_PORT = Number(process.env.CDP_PORT || 9222);
 // Live run stream is default-on; silence it for piped/CI runs (#0013).
 const QUIET = !!process.env.QA_QUIET || process.argv.includes('--quiet');
+// Optional credits→$ rate (USD per AI-Credit) for the cost summary's $ estimate (#0014).
+const AIU_USD = Number(process.env.QA_AIU_USD) || undefined;
 const log = (...a: unknown[]): void => console.log('[codify]', ...a);
 
 async function main(): Promise<void> {
@@ -82,7 +85,7 @@ async function main(): Promise<void> {
     : await attachInProcess({ page, session: 'qa-focus-codify' });
 
   // The control model (hard leash + step budget + recency) lives in src/harness.mts (ADR 0002).
-  const { session, client, detachStream } = await createGatedSession({
+  const { session, client, detachStream, getUsage } = await createGatedSession({
     cli: CLI,
     model: process.env.COPILOT_MODEL,
     quiet: QUIET, // stream the model's reasoning/output/tool calls live unless silenced (#0013)
@@ -128,6 +131,7 @@ async function main(): Promise<void> {
   if (text && QUIET) { log('--- model summary ---'); console.log(text); }
   log('accepted locators:', facts.length);
   for (const f of facts) console.log('  •', f);
+  console.log('\n' + renderCostSummary(getUsage({ creditsToUsd: AIU_USD }))); // what the run cost (#0014)
 
   await pw.detach().catch(() => {});
   await client.stop?.();

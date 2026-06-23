@@ -1,7 +1,7 @@
 ---
 id: 0014
 title: Cost & usage accounting (tokens + AI-Credits, on direct shell runs)
-status: open
+status: closed
 severity: medium
 group: 0012
 depends_on: [0013]
@@ -21,13 +21,24 @@ from the shell. Riding the event tap from #0013, accumulate per-turn usage acros
 token + cost summary at the end (and fold it into the evidence artifact + `explore-flow.json`).
 
 ## Acceptance
-- [ ] A **pure** `accumulate(usageEvents) → summary` function (`src/cost.mts`?) — sums input/output/
-      cache/reasoning tokens per model and prices them — with **deterministic unit tests** (synthetic
-      `AssistantUsageEvent`s + a fixed price table → expected summary; no model/quota).
-- [ ] Every `explore`/`codify`/`interactive` run prints the summary at the end (direct shell included).
-- [ ] The summary is folded into the evidence artifact (`renderArtifact`) and `explore-flow.json`.
-- [ ] Reports **tokens always**; reports **AI-Credits** when the model exposes `tokenPrices`; an
-      optional user-set credits→$ rate (env) adds a `$` estimate.
+- [x] A **pure** `accumulateUsage(records) → summary` (`src/cost.mts`) — sums input/output/cache/
+      reasoning tokens per model and prices AI-Credits — with **deterministic unit tests**
+      (`tests/cost.spec.ts`, 11 cases; synthetic `AssistantUsageEvent.data` + a fixed credits→$ rate
+      → asserted summary/lines; no model/quota).
+- [x] Every `explore`/`codify`/`interactive` run prints the summary at the end (direct shell
+      included) — explore via the artifact echo, codify/interactive via `renderCostSummary`. The
+      `assistant.usage` tap is `quiet`-independent, so piped/CI runs still get it.
+- [x] The summary is folded into the evidence artifact (`renderArtifact` "## Usage & cost") and
+      `explore-flow.json` (`flow.usage`).
+- [x] Reports **tokens always**; reports **AI-Credits** from the authoritative
+      `copilotUsage.totalNanoAiu` (1 AIU = 1e9 nano) when present; an optional user-set credits→$
+      rate (`QA_AIU_USD`) adds a `$` estimate. Verified live: `27,543 in + 269 out, 10,855
+      cache-read, 17 reasoning across 5 requests → 6.9866 AI-Credits` (claude-sonnet-4.6).
+
+## Implementation note
+The SDK carries the priced AI-Credits cost per request in `copilotUsage.totalNanoAiu`, so we sum
+that directly rather than re-pricing tokens against `ModelBilling.tokenPrices` — the runtime's own
+figure is the honest one. `$` is only ever an estimate from a user-supplied rate.
 
 ## Notes
 SDK (verified): `AssistantUsageEvent.data` carries input/output/`cacheReadTokens`/`cacheWriteTokens`/

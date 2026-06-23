@@ -11,6 +11,7 @@
 // output — consistent with "findings are never self-certified" (CONTRACTS.md). The codifier
 // re-derives and gate-grades every locator; the flow only says WHAT to harden, not that it is
 // already correct.
+import type { UsageSummary } from './cost.mjs';
 
 /** One durable, accessible step in a captured flow (NOT a snapshot ref). */
 export interface FlowStep {
@@ -30,6 +31,8 @@ export interface Flow {
   startUrl: string;
   surface: string;
   steps: FlowStep[];
+  /** the run's token + AI-Credits usage (#0014), folded in when the flow is written. */
+  usage?: UsageSummary;
 }
 
 /** A fresh, empty flow record. */

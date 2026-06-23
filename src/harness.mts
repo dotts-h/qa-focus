@@ -12,6 +12,8 @@ import { CopilotClient, RuntimeConnection, ToolSet, defineTool, approveAll } fro
 import type { CopilotClient as CopilotClientType, CopilotSession } from '@github/copilot-sdk';
 import type { ToolDescriptor } from './tool.mjs';
 import { attachStreamRenderer } from './stream.mjs';
+import { attachCostMeter } from './cost.mjs';
+import type { AccumulateOptions, UsageSummary } from './cost.mjs';
 
 /** Options for `createGatedSession` — the hard leash (cage + deny + budget). */
 export interface GatedSessionOptions {
@@ -42,6 +44,8 @@ export interface GatedSession {
   flushStream: () => void;
   /** Flush + unsubscribe the live run-stream renderer. Call once at teardown (no-op when quiet). */
   detachStream: () => void;
+  /** The run's token + AI-Credits usage so far (#0014). Reported even on piped/CI runs. */
+  getUsage: (opts?: AccumulateOptions) => UsageSummary;
 }
 
 /**
@@ -73,9 +77,11 @@ export async function createGatedSession({ cli, model, tools, stepBudget, recenc
     },
   });
 
-  // The live run stream rides this one seam (ADR 0002), so all three runners get it for free and
-  // #0014 (cost) can ride the same tap. The renderer is pure (src/stream.mts); this only wires it.
+  // Both observability features ride this one seam (ADR 0002), so all three runners get them for
+  // free. The live run stream (#0013) honours `quiet`; the cost meter (#0014) does NOT — usage is
+  // reported even on piped/CI runs. Both pure-accounting halves live in src/{stream,cost}.mts.
   const { flush: flushStream, detach: detachStream } = attachStreamRenderer(session, { quiet });
+  const { getUsage } = attachCostMeter(session);
 
-  return { session, client, toolNames, flushStream, detachStream };
+  return { session, client, toolNames, flushStream, detachStream, getUsage };
 }
