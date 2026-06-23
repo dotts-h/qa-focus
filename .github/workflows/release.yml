@@ -27,7 +27,11 @@ jobs:
         # (GITHUB_REF_NAME with a :- fallback) is WRONG on dispatch — the ref is
         # the *branch*, non-empty, so it shadows the input and the release gets
         # tagged after the branch. scripts/check-workflows.sh guards this.
-        run: echo "version=${{ github.event.inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+        # Route the ref through an env var (not direct ${{ }} interpolation in run:)
+        # so a crafted tag/branch name cannot inject shell — semgrep run-shell-injection.
+        env:
+          REF: ${{ github.event.inputs.tag || github.ref_name }}
+        run: echo "version=$REF" >> "$GITHUB_OUTPUT"
 
       - name: Build artifacts (qa-focus)
         env:

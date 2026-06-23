@@ -39,7 +39,9 @@ defenses, and the residual risks, in priority order:
 
 - **`npm audit --audit-level=high`** — 0 vulnerabilities.
 - **`gitleaks detect` (full history, 12 commits)** — 0 leaks.
-- **`semgrep --config auto`** — runs in CI (`security.yml`); not run locally (not installed here).
+- **`semgrep --config auto`** (CI) — caught 1 real finding on first run: a shell-injection sink in
+  the generated `release.yml` (`${{ github.* }}` interpolated into a `run:` step). **Fixed** by
+  routing the ref through an `env:` var. Re-scan clean.
 
 ## What each gate does
 
