@@ -11,10 +11,30 @@
 import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 import type { Page } from 'playwright';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const DEFAULT_BIN = join(HERE, '../node_modules/.bin/playwright-cli');
+
+/**
+ * Resolve the @playwright/cli executable robustly. A hardcoded `../node_modules/.bin/...` hop is
+ * wrong from the published build (the module ships at `dist/src/`, node_modules sits at the package
+ * root, not under `dist/`). `createRequire().resolve` walks up node_modules from THIS module the
+ * same way `import` does — correct in dev (`src/`), in the build (`dist/src/`), and in a consumer's
+ * install. We read the package's `bin` entry and run it through `node`, so it works regardless of
+ * the file's executable bit. Falls back to the old relative path if resolution somehow fails.
+ */
+function resolveCliBin(): string {
+  try {
+    const pkgPath = createRequire(import.meta.url).resolve('@playwright/cli/package.json');
+    const bin = (JSON.parse(readFileSync(pkgPath, 'utf8')) as { bin?: string | Record<string, string> }).bin;
+    const rel = typeof bin === 'string' ? bin : bin?.['playwright-cli'];
+    if (rel) return join(dirname(pkgPath), rel);
+  } catch { /* fall through to the dev path */ }
+  return join(HERE, '../node_modules/.bin/playwright-cli');
+}
+const DEFAULT_BIN = resolveCliBin();
 
 /** The outcome of one CLI invocation: success flag + combined stdout/stderr. */
 export interface CliResult {
@@ -36,11 +56,15 @@ export interface BrowserCtx {
   pwcli: PwCli;
 }
 
-/** Build a CLI driver bound to one browser session. */
-export function makePwCli({ bin = DEFAULT_BIN, session = 'qa-focus', cwd = join(HERE, '..') }: { bin?: string; session?: string; cwd?: string } = {}): PwCli {
+/** Build a CLI driver bound to one browser session. cwd defaults to the process cwd (where an
+ *  installed `qa-focus` runs), so the CLI's session/snapshot files land in the user's project,
+ *  not inside the package install dir. */
+export function makePwCli({ bin = DEFAULT_BIN, session = 'qa-focus', cwd = process.cwd() }: { bin?: string; session?: string; cwd?: string } = {}): PwCli {
+  // Run the resolved bin THROUGH node (not as a bare executable) so it works regardless of the
+  // file's +x bit, while staying argv-discrete with no shell — the prompt-injection defense (ADR 0001).
   const run = (args: string[]): Promise<CliResult> =>
     new Promise((resolve) => {
-      execFile(bin, args, { cwd, maxBuffer: 16 << 20 }, (err, stdout, stderr) => {
+      execFile(process.execPath, [bin, ...args], { cwd, maxBuffer: 16 << 20 }, (err, stdout, stderr) => {
         const out = `${stdout || ''}${stderr ? `\n${stderr}` : ''}`.trim();
         resolve({ ok: !err, out });
       });

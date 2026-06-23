@@ -26,7 +26,7 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { createGatedSession } from '../src/harness.mjs';
 import { openSurface } from '../src/provider.mjs';
 import { makeAllowlist, guardContext } from '../src/allowlist.mjs';
@@ -48,9 +48,13 @@ const log = (...a: unknown[]): void => console.log('[explore]', ...a);
 
 async function main(): Promise<void> {
   const allow = makeAllowlist(ALLOWLIST);
+  // The bundled demo server is a dev convenience; it ships only with the repo, not the published
+  // package (files:[dist]). Spawn it only when it's actually present — an installed `qa-focus`
+  // points START_URL at the user's own app.
   let server;
-  if (START_URL.startsWith('http://localhost:3000')) {
-    server = spawn('node', [join(HERE, '../fixtures/app/server.mjs')], { stdio: 'ignore', env: { ...process.env, PORT: '3000' } });
+  const demoServer = join(HERE, '../fixtures/app/server.mjs');
+  if (START_URL.startsWith('http://localhost:3000') && existsSync(demoServer)) {
+    server = spawn('node', [demoServer], { stdio: 'ignore', env: { ...process.env, PORT: '3000' } });
     await new Promise((r) => setTimeout(r, 500));
   }
 

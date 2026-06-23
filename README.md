@@ -57,6 +57,25 @@ GOAL="log in and add a task" npm run explore   # live explorer → artifacts/exp
 GOAL="harden the add-to-cart flow" SPEC_NAME="add-to-cart" npm run codify   # live codifier → tests/authored/
 ```
 
+## CLI
+
+Installed, `qa-focus` drives any app through one entrypoint — it embeds `@github/copilot-sdk` and
+uses your installed `copilot` login (no API key, no MCP):
+
+```bash
+npm i -g qa-focus          # or run ad-hoc with: npx qa-focus <command>
+npx playwright install chromium
+
+qa-focus explore     --goal "Add a task and verify it appears" --url https://your.app
+qa-focus codify      --flow artifacts/explore-flow.json --spec add-task
+qa-focus interactive --url https://your.app     # enforcing REPL (the hard leash)
+qa-focus --help
+```
+
+Friendly flags map onto the env contract the harnesses read
+(`GOAL`/`START_URL`/`PW_CHANNEL`/`SURFACE`/`FLOW`/`STORAGE_STATE`/…); a value flag with no value
+exits non-zero rather than silently using a wrong default. `qa-focus --help` lists them all.
+
 ## Status
 
 - **Proven:** the locator-priority gate (ladder + scoped tier + graceful degradation, incl. iframes,
