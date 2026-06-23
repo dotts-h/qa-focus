@@ -18,7 +18,7 @@ never a cycle).
 
 | id | title | status | children |
 |----|-------|--------|----------|
-| [0001](0001-v1-cli-deliverable.md) | v1 — CLI deliverable across web(chrome)+electron+openfin, no MCP | open | 0002–0008 |
+| [0001](0001-v1-cli-deliverable.md) | v1 — CLI deliverable across web(chrome)+electron+openfin, no MCP | closed | 0002–0008 |
 | [0015](0015-epic-multi-host-runner-streamable-repl-headless-model-select-vs-code-participant.md) | Multi-host runner — streamable REPL, headless model-select, VS Code participant | open | 0016–0018 |
 
 ## Issues
@@ -31,7 +31,7 @@ never a cycle).
 | [0005](0005-typescript-core-npm.md) | Migrate core to TypeScript + publish typed npm package | closed | high | 0001 | adr:0004 |
 | [0006](0006-standalone-cli-npm.md) | Standalone CLI — git-distributed (explore / codify / interactive) | closed | high | 0001 | adr:0003,0006; dep:0005 |
 | [0007](0007-copilot-cli-plugin.md) | Copilot CLI plugin packaging (plugin.json + git marketplace) | closed | medium | 0001 | adr:0003; dep:0006 |
-| [0008](0008-github-action.md) | GitHub Action adapter (explore/codify/gate in CI) | open | medium | 0001 | adr:0003; dep:0006 |
+| [0008](0008-github-action.md) | GitHub Action adapter (explore/codify/gate in CI) | closed | medium | 0001 | adr:0003; dep:0006 |
 | [0009](0009-live-injection-redteam.md) | Live adversarial prompt-injection red-team | closed | medium | — | adr:0001 |
 | [0010](0010-trace-driven-healing.md) | M5 trace-driven self-healing | closed | low | — | — |
 | [0011](0011-frameset-flake.md) | Flaky legacy &lt;frameset&gt; degradation test under parallel load | closed | low | — | — |

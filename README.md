@@ -104,6 +104,23 @@ copilot plugin install qa-focus@qa-focus            # installs the qa-focus skil
 
 (The CLI itself still installs from git — see above; the plugin's skill drives it.)
 
+## GitHub Action (CI)
+
+A composite action (`.github/actions/qa-focus`) wraps the CLI for CI. `mode: gate` runs the durable,
+gate-graded Playwright suite as a **required check** — pure Playwright, **no model, no token** — and is
+the production-ready CI path. `mode: explore | codify` drive a model and need a Copilot login token;
+that CI-auth path is **not yet proven on a hosted runner** (experimental). Needs a hosted/sudo-capable
+Linux runner (`playwright install --with-deps`); web/Electron only (OpenFin needs win/mac). See
+`.github/workflows/qa-focus-example.yml` (manual-only).
+
+```yaml
+- uses: dotts-h/qa-focus/.github/actions/qa-focus@main
+  id: qa
+  with:
+    mode: gate          # or: explore / codify (+ copilot-token, url, goal, …)
+# steps.qa.outputs → result, and artifact / flow (explore)
+```
+
 ## Status
 
 - **Proven:** the locator-priority gate (ladder + scoped tier + graceful degradation, incl. iframes,
