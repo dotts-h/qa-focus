@@ -56,9 +56,10 @@ export interface BrowserCtx {
   pwcli: PwCli;
 }
 
-/** Build a CLI driver bound to one browser session. cwd defaults to the process cwd (where an
- *  installed `qa-focus` runs), so the CLI's session/snapshot files land in the user's project,
- *  not inside the package install dir. */
+/** Build a CLI driver bound to one browser session. cwd defaults to process.cwd() so an installed
+ *  `qa-focus` operates in the USER's project — the CLI's workspace keying and any relative path
+ *  args resolve there, not against the package install dir. Captured once, so attach/cmd/detach
+ *  share a consistent cwd. */
 export function makePwCli({ bin = DEFAULT_BIN, session = 'qa-focus', cwd = process.cwd() }: { bin?: string; session?: string; cwd?: string } = {}): PwCli {
   // Run the resolved bin THROUGH node (not as a bare executable) so it works regardless of the
   // file's +x bit, while staying argv-discrete with no shell — the prompt-injection defense (ADR 0001).

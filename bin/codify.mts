@@ -32,7 +32,11 @@ import { resolveCopilotCli } from '../src/copilot-path.mjs';
 import { STANDARDS_PROMPT } from '../src/standards.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(HERE, '..');
+// The codifier writes specs and runs the `playwright test` gate in the USER's project (their
+// playwright.config, their tests/authored), so ROOT is the invocation cwd — NOT join(HERE,'..'),
+// which is the package's own dist/ when installed (no config there). In dev (run from the repo
+// root) process.cwd() IS the repo root, so behavior is unchanged.
+const ROOT = process.cwd();
 const CLI = resolveCopilotCli();
 // M4 handoff: FLOW=path/to/explore-flow.json seeds the codifier with the explorer's
 // discovered recipe (steps + start URL + goal). It's a SEED to re-walk and gate-harden,

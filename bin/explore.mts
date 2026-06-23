@@ -119,14 +119,17 @@ async function main(): Promise<void> {
     240_000,
   );
 
-  mkdirSync(join(HERE, '../artifacts'), { recursive: true });
-  const tracePath = join(HERE, '../artifacts/explore-trace.zip');
+  // Artifacts go in the USER's project (cwd), not the package install dir — so the README's
+  // `qa-focus codify --flow artifacts/explore-flow.json` handoff resolves where the user runs.
+  const artifactsDir = join(process.cwd(), 'artifacts');
+  mkdirSync(artifactsDir, { recursive: true });
+  const tracePath = join(artifactsDir, 'explore-trace.zip');
   await context.tracing.stop({ path: tracePath });
   const md = renderArtifact({ goal: GOAL, sink, findings, tracePath });
-  const out = join(HERE, '../artifacts/explore-report.md');
+  const out = join(artifactsDir, 'explore-report.md');
   writeFileSync(out, md);
   // The machine-readable flow — the codifier's input for the M4 handoff.
-  const flowOut = join(HERE, '../artifacts/explore-flow.json');
+  const flowOut = join(artifactsDir, 'explore-flow.json');
   writeFileSync(flowOut, JSON.stringify(flow, null, 2));
   log('artifact:', out, '| flow:', flowOut, `(${flow.steps.length} steps)`);
   console.log('\n' + md);
