@@ -44,6 +44,10 @@ export type { UsageRecord, UsageSummary, ModelUsage, TokenTotals, AccumulateOpti
 export { resolveModel, formatModelList, listCopilotModels } from './models.mjs';
 export type { ResolveResult } from './models.mjs';
 
+// Streamable REPL building blocks — line-buffer + above-prompt redraw (ADR 0008).
+export { createLineWriter, writeAbovePrompt, readlinePromptSurface } from './repl.mjs';
+export type { LineWriter, PromptSurface } from './repl.mjs';
+
 // The model's capability surface — gated tool factories.
 export { makeBrowserTools } from './browser-tools.mjs';
 export type { BrowserToolsOptions } from './browser-tools.mjs';
