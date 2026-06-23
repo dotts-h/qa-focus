@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Complex Surfaces</title></head>
+<body>
+  <h1>Complex</h1>
+  <iframe name="editor" title="Editor" src="/inner.html" width="320" height="140"></iframe>
+  <open-card></open-card>
+  <closed-card></closed-card>
+  <script>
+    customElements.define('open-card', class extends HTMLElement {
+      connectedCallback() {
+        const r = this.attachShadow({ mode: 'open' });
+        r.innerHTML = '<button type="button">Open Shadow Btn</button>' +
+          '<label>Shadow field <input name="sf" /></label>';
+      }
+    });
+    customElements.define('closed-card', class extends HTMLElement {
+      connectedCallback() {
+        const r = this.attachShadow({ mode: 'closed' });
+        r.innerHTML = '<button type="button">Closed Shadow Btn</button>';
+      }
+    });
+  </script>
+</body></html>

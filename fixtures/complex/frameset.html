@@ -1,0 +1,9 @@
+<!doctype html>
+<!-- Legacy <frameset>/<frame> (obsolete HTML, not <iframe>): frameLocator() cannot
+     reach into these — the gate must degrade to the Frame API. Nested on purpose
+     (top → middle) so resolution MUST pierce the frame tree by name, not by a page CSS selector. -->
+<html lang="en"><head><meta charset="utf-8"><title>Frameset</title></head>
+<frameset rows="100%">
+  <frame name="frame-top" src="/frame-top.html">
+</frameset>
+</html>
