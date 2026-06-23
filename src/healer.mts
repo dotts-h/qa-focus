@@ -90,7 +90,19 @@ export async function extractTraceContext(snapshotPage: Page, broken: Proposal):
         };
         return map[e.tagName.toLowerCase()] ?? null;
       };
-      const nameOf = (e: Element): string => (e.getAttribute('aria-label') || '').trim();
+      const nameOf = (e: Element): string => {
+        const aria = (e.getAttribute('aria-label') || '').trim();
+        if (aria) return aria;
+        // A table row is named by its first non-empty cell text — mirror the gate's scopedCandidate
+        // (ladder.mts) so a trace-recovered row scope matches getByRole('row', { name }) the same way.
+        if (e.matches('tr,[role=row]')) {
+          for (const cell of e.querySelectorAll('td,th,[role=cell],[role=gridcell],[role=columnheader]')) {
+            const t = (cell.textContent || '').trim();
+            if (t) return t;
+          }
+        }
+        return '';
+      };
       let cur = el.parentElement;
       while (cur) {
         const role = roleOf(cur);
@@ -121,16 +133,22 @@ export async function healFromTrace(page: Page, broken: Proposal, trace: TraceCo
   const correctedName = trace.name && trace.name !== broken.name ? trace.name : undefined;
 
   const candidates: Proposal[] = [];
-  // 1. Strongest: the SAME target, scoped to its trace-recovered container (the durable disambiguator).
-  if (scope) candidates.push({ tier: broken.tier, role: broken.role, name: broken.name, scope });
-  // 2. A fuller/corrected exact name the broken locator had lost.
-  if (correctedName) candidates.push({ tier: 'role', role: broken.role, name: correctedName, exact: trace.exact });
-  // 3. Both: scoped AND corrected name.
-  if (scope && correctedName) candidates.push({ tier: broken.tier, role: broken.role, name: correctedName, exact: trace.exact, scope });
+  // 1. Strongest: the SAME target, scoped to its trace-recovered container. Spread `broken` so the
+  //    target's other fields (frame, exact, css/xpath expression) are preserved — hand-picking a few
+  //    would crash css/xpath locators, break exact-match, and miss in-frame elements.
+  if (scope) candidates.push({ ...broken, scope });
+  // 2. A fuller/corrected exact name the broken locator had lost (role-based; needs a role to heal by).
+  if (correctedName && broken.role) candidates.push({ tier: 'role', role: broken.role, name: correctedName, exact: trace.exact });
+  // 3. Both: scoped AND corrected name — keep broken's fields, override the name + scope.
+  if (scope && correctedName) candidates.push({ ...broken, name: correctedName, exact: trace.exact, scope });
 
   for (const c of candidates) {
-    const g = await gradeLocator(page, { ...c }); // the gate stays authoritative: exactly-1, no higher tier beats it
-    if (g.ok) return { healed: true, needsConfirmation: true, was: render(broken), proposal: c, locator: render(c), tier: g.tier };
+    // A candidate that can't even be built on this page (e.g. an invalid combination) is a refusal,
+    // not a crash — the gate stays authoritative: exactly-1, no higher tier beats it.
+    try {
+      const g = await gradeLocator(page, { ...c });
+      if (g.ok) return { healed: true, needsConfirmation: true, was: render(broken), proposal: c, locator: render(c), tier: g.tier };
+    } catch { /* candidate not constructible here — try the next */ }
   }
   return { healed: false, reason: 'the trace context did not yield an unambiguous recovery — re-author by hand', was: render(broken) };
 }

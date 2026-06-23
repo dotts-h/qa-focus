@@ -21,9 +21,11 @@ use the failure trace's captured DOM to recover an element the live page alone c
 still gate-verified, still never silently green-washing.
 
 ## Acceptance
-- [x] Read the Playwright trace's DOM snapshot at the failing step — `extractTraceContext(snapshotPage,
+- [~] Read the Playwright trace's DOM snapshot at the failing step — `extractTraceContext(snapshotPage,
       broken)` reads the snapshot DOM, pins the (then-unambiguous) intended element, and walks up to
-      its nearest accessible ancestor scope (a named row/region/group).
+      its nearest accessible ancestor scope (a named row/region — by `aria-label` OR, for tables, the
+      row's first cell text, mirroring the gate). It consumes the snapshot **as a Page**; pulling the
+      HTML out of `explore-trace.zip` is the one remaining thin integration step (deferred, see Notes).
 - [x] Recover the intended element + re-grade through the gate; flag needs-confirmation —
       `healFromTrace(page, broken, traceCtx)` builds a SCOPED candidate (ladder tier 8) from the
       recovered scope, grades it on the live page, returns it `needsConfirmation`, and REFUSES when

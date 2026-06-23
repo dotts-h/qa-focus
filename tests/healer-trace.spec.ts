@@ -75,3 +75,53 @@ test('end-to-end: read trace snapshot → recover scope → re-grade on the live
   expect(r.healed).toBe(true);
   expect(r.locator).toContain("getByRole('row', { name: 'Acme Corp' })");
 });
+
+// The canonical real-table case: rows named by their FIRST CELL TEXT, not aria-label (mirrors the
+// gate's scopedCandidate). This is the case the scoped tier exists for.
+const SNAPSHOT_CELLS = '<table><tr><td>Acme Corp</td><td><a href="#">Edit</a></td></tr></table>';
+const LIVE_CELLS = '<table><tr><td>Acme Corp</td><td><a href="#">Edit</a></td></tr><tr><td>Globex Inc</td><td><a href="#">Edit</a></td></tr></table>';
+
+test('extractTraceContext names a row by its first cell text when there is no aria-label', async () => {
+  const snap = await pageWith(SNAPSHOT_CELLS);
+  const ctx = await extractTraceContext(snap, { ...BROKEN });
+  expect(ctx.scope).toEqual({ role: 'row', name: 'Acme Corp' });
+});
+
+test('trace-driven heal works on a cell-text-named table (the canonical scoped case)', async () => {
+  const snap = await pageWith(SNAPSHOT_CELLS);
+  const ctx = await extractTraceContext(snap, { ...BROKEN });
+  const p = await pageWith(LIVE_CELLS);
+  const r = await healFromTrace(p, { ...BROKEN }, ctx);
+  expect(r.healed).toBe(true);
+  expect(r.tier).toBe('scoped');
+  expect(r.locator).toContain("getByRole('row', { name: 'Acme Corp' })");
+});
+
+test('extractTraceContext returns {} when the snapshot cannot pin the element (already ambiguous there)', async () => {
+  const snap = await pageWith('<a href="#">Edit</a><a href="#">Edit</a>'); // two — count !== 1
+  expect(await extractTraceContext(snap, { ...BROKEN })).toEqual({});
+});
+
+test('extractTraceContext returns {} when there is no named accessible ancestor', async () => {
+  const snap = await pageWith('<div><span><a href="#">Edit</a></span></div>'); // no row/region/name
+  expect(await extractTraceContext(snap, { ...BROKEN })).toEqual({});
+});
+
+test('trace-driven heal recovers a NAME drift via the corrected name (no scope needed)', async () => {
+  // The link was authored as "Submit" but the live label drifted to "Save changes"; the trace carries
+  // the corrected name. Only one link on the page → a flat corrected-name locator resolves.
+  const p = await pageWith('<a href="#">Save changes</a>');
+  const r = await healFromTrace(p, { tier: 'role', role: 'link', name: 'Submit' }, { name: 'Save changes' });
+  expect(r.healed).toBe(true);
+  expect(r.locator).toBe("page.getByRole('link', { name: 'Save changes' })");
+});
+
+test('trace-driven heal combines scope AND a corrected name when both are needed', async () => {
+  // Two rows; the target link\'s name also drifted ("Edit" → "Modify"). Scope alone or name alone is
+  // ambiguous/missing; together they resolve uniquely.
+  const live = '<table><tr role="row" aria-label="Acme Corp"><td><a href="#">Modify</a></td></tr><tr role="row" aria-label="Globex Inc"><td><a href="#">Modify</a></td></tr></table>';
+  const p = await pageWith(live);
+  const r = await healFromTrace(p, { ...BROKEN }, { scope: { role: 'row', name: 'Acme Corp' }, name: 'Modify' });
+  expect(r.healed).toBe(true);
+  expect(r.locator).toContain("getByRole('row', { name: 'Acme Corp' }).getByRole('link', { name: 'Modify' })");
+});
