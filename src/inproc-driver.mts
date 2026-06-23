@@ -25,6 +25,9 @@ const ACTION_TIMEOUT = 10_000;
 // stayed hidden because the unit tests run under Playwright's transform (which doesn't inject it);
 // a live Electron explore run surfaced it (#0026). Defining a faithful `__name` in the page closes
 // the gap. Kept as a STRING so esbuild doesn't transform (and re-`__name`) the shim itself.
+// NOTE: `__name` is the only helper esbuild injects into `snapshotPage`'s callback today (it holds
+// only arrow functions). If that callback ever gains a class field or `??=`/spread, esbuild may also
+// inject `__publicField`/`__defProp`/`__spreadValues` — shim those here too if so.
 const NAME_SHIM = 'globalThis.__name = globalThis.__name || function (target, value) { try { Object.defineProperty(target, "name", { value: value, configurable: true }); } catch (e) { /* frozen/exotic target */ } return target; };';
 
 /** One snapshot entry: the durable accessible identity behind a ref. */
@@ -133,7 +136,7 @@ export async function attachInProcess(
   // Make esbuild's `__name` helper resolvable in the page (see NAME_SHIM): once on every future
   // document (so the driver's `goto`/navigations stay covered) and once on the already-loaded one.
   await page.addInitScript(NAME_SHIM);
-  await page.evaluate(NAME_SHIM).catch(() => { /* about:blank / no document yet — initScript covers it */ });
+  await page.evaluate(NAME_SHIM).catch(() => { /* page closed/navigating mid-attach — addInitScript covers future docs */ });
 
   const cmd = async (...args: string[]): Promise<CliResult> => {
     const [sub, ...rest] = args;
