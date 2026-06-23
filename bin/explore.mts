@@ -33,6 +33,7 @@ import { makeAllowlist, guardContext } from '../src/allowlist.mjs';
 import { newSink, attachCollectors, renderArtifact } from '../src/evidence.mjs';
 import type { Finding } from '../src/evidence.mjs';
 import { attachCli } from '../src/pwcli.mjs';
+import { attachInProcess } from '../src/inproc-driver.mjs';
 import { makeBrowserTools } from '../src/browser-tools.mjs';
 import { resolveCopilotCli } from '../src/copilot-path.mjs';
 import { newFlow } from '../src/flow.mjs';
@@ -65,7 +66,9 @@ async function main(): Promise<void> {
     storageState: process.env.STORAGE_STATE, // reuse a captured login (cookies + localStorage) if the file exists
   });
   const { context, page, cdpEndpoint } = surface;
-  if (!cdpEndpoint) throw new Error(`surface "${surface.kind}" exposes no CDP endpoint for the playwright-cli to attach to (web/openfin only)`);
+  // Electron exposes no CDP endpoint — it uses the in-process action driver (ADR 0005) instead
+  // of the @playwright/cli; web/openfin still require a CDP endpoint for the CLI to attach.
+  if (!cdpEndpoint && surface.kind !== 'electron') throw new Error(`surface "${surface.kind}" exposes no CDP endpoint for the playwright-cli to attach to (web/openfin only)`);
   if (surface.kind === 'web') await guardContext(context, allow); // allowlist applies to real web surfaces
   await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
   const sink = newSink();
@@ -75,10 +78,15 @@ async function main(): Promise<void> {
   // written alongside the Markdown artifact and fed to the codifier (FLOW=…) to harden.
   const flow = newFlow({ goal: GOAL, startUrl: START_URL, surface: process.env.SURFACE || 'web' });
 
-  if (allow(START_URL)) { await page.goto(START_URL, { waitUntil: 'domcontentloaded' }); sink.steps.push(`goto ${START_URL}`); flow.steps.push({ action: 'goto', url: START_URL }); }
+  // Electron loads its own app (provider's _electron.launch → loadFile); navigating it to START_URL
+  // would replace that app with the web fixture. Only web/openfin start from a URL.
+  if (surface.kind !== 'electron' && allow(START_URL)) { await page.goto(START_URL, { waitUntil: 'domcontentloaded' }); sink.steps.push(`goto ${START_URL}`); flow.steps.push({ action: 'goto', url: START_URL }); }
 
-  // Attach the CLI to the same browser our in-process page already drives.
-  const { pwcli: pw, getCtx } = await attachCli({ cdpEndpoint, page, session: 'qa-focus' });
+  // Attach the action surface to the same page: the @playwright/cli over CDP for web/openfin,
+  // or the in-process driver for Electron (no CDP endpoint). Both expose the same PwCli shape.
+  const { pwcli: pw, getCtx } = cdpEndpoint
+    ? await attachCli({ cdpEndpoint, page, session: 'qa-focus' })
+    : await attachInProcess({ page, session: 'qa-focus' });
 
   // The control model (hard leash + step budget) lives in src/harness.mts (ADR 0002). The
   // budget is the runaway-loop circuit-breaker: on exhaustion the model is denied further

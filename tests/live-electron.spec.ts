@@ -10,6 +10,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { openSurface } from '../src/provider.mjs';
 import { gradeLocator } from '../extension/qa-focus/ladder.mjs';
+import { attachInProcess } from '../src/inproc-driver.mjs';
+import { parseSnapshotRefs } from '../src/flow.mjs';
 
 const ELECTRON_LIVE = !!process.env.ELECTRON_LIVE;
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -38,6 +40,35 @@ test('LIVE electron: a raw CSS locator is bounced toward the accessible role (ga
     const g = await gradeLocator(s.page, { tier: 'css', expression: '#new-task', reason: 'probe' });
     expect(g.ok).toBe(false);
     expect(g.suggestedTier).toBeTruthy();
+  } finally {
+    await s.close();
+  }
+});
+
+test('LIVE electron: the in-process driver snapshots + acts by ref on a real Electron window (no CDP)', async () => {
+  test.skip(!ELECTRON_LIVE, 'set ELECTRON_LIVE=1 (needs electron + a display) to run');
+  // Electron exposes no CDP endpoint, so the @playwright/cli can't attach — the explorer/
+  // codifier drive it through the in-process action driver instead (ADR 0005 / issue #0004).
+  // This proves that action path on the REAL desktop surface (no model/quota needed).
+  const s = await openSurface({ kind: 'electron', electronArgs: ['--no-sandbox', APP_DIR] });
+  try {
+    expect(s.cdpEndpoint).toBeFalsy(); // the precondition that forces the in-process path
+    const { pwcli } = await attachInProcess({ page: s.page });
+    const snap = await pwcli.cmd('snapshot');
+    expect(snap.ok).toBe(true);
+    const refs = parseSnapshotRefs(snap.out);
+    let taskRef = '';
+    let hasAdd = false;
+    for (const [ref, v] of refs) {
+      if (v.role === 'textbox' && /New task/.test(v.name)) taskRef = ref;
+      if (v.role === 'button' && /Add/.test(v.name)) hasAdd = true;
+    }
+    expect(hasAdd).toBe(true);
+    expect(taskRef).toBeTruthy();
+    // fill-by-ref must hit the right element on the live window (the fixture form is static,
+    // so we assert the field value rather than a submitted result).
+    expect((await pwcli.cmd('fill', taskRef, 'milk')).ok).toBe(true);
+    expect(await s.page.locator('#new-task').inputValue()).toBe('milk');
   } finally {
     await s.close();
   }

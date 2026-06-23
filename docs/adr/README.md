@@ -12,3 +12,4 @@ accepted ADR's decision — supersede it (`Status: superseded-by-NNNN`).
 | [0002](0002-extract-gated-session-harness.md) | Extract the gated-session control model into one seam | accepted |
 | [0003](0003-distribution-native-adapters-no-mcp.md) | v1 distribution: CLI-first, native adapters, zero MCP | accepted |
 | [0004](0004-typescript-core-and-npm-package.md) | Migrate the core to TypeScript and publish a typed npm package | accepted |
+| [0005](0005-in-process-action-adapter-electron.md) | In-process action adapter for Electron (the CDP CLI can't attach) | accepted |

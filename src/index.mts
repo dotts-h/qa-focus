@@ -42,7 +42,9 @@ export type { ToolDescriptor, ToolDef, ToolResult } from './tool.mjs';
 export { newSink, attachCollectors, renderArtifact } from './evidence.mjs';
 export type { Sink, Finding } from './evidence.mjs';
 
-// The @playwright/cli action surface + the copilot path resolver.
+// Action surfaces: the @playwright/cli over CDP (web/openfin) and the in-process driver
+// for Electron (no CDP endpoint) — both expose the same PwCli shape (ADR 0005).
 export { makePwCli, attachCli } from './pwcli.mjs';
 export type { PwCli, BrowserCtx, CliResult } from './pwcli.mjs';
+export { attachInProcess } from './inproc-driver.mjs';
 export { resolveCopilotCli } from './copilot-path.mjs';
