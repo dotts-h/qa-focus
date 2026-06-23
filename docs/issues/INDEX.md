@@ -42,3 +42,9 @@ never a cycle).
 | [0016](0016-streamable-repl-polish-readline-stream-while-typing-adr-0008.md) | Streamable REPL polish — readline stream-while-typing (ADR 0008) | closed | medium | 0015 | |
 | [0017](0017-headless-run-mode-model-selection-model-list-models.md) | Headless run mode + model selection (--model / --list-models) | closed | medium | 0015 | |
 | [0018](0018-vs-code-qa-focus-chat-participant-extension-adr-0007-no-mcp.md) | VS Code @qa-focus chat participant extension (ADR 0007, no MCP) | closed | medium | 0015 | adr:0007 |
+| [0019](0019-epic-v1-1-close-the-deferred-remainders.md) | Epic: v1.1 — close the deferred remainders | open | medium | — | |
+| [0020](0020-trace-driven-healer-integration-feed-explore-trace-zip-dom-into-the-recover-re-grade-core.md) | Trace-driven healer integration — feed explore-trace.zip DOM into the recover+re-grade core | open | medium | 0019 | |
+| [0021](0021-nested-multi-level-iframe-inline-frameset-gate-coverage.md) | Nested/multi-level iframe + inline frameset gate coverage | open | medium | 0019 | |
+| [0022](0022-sandbox-run-spec-isolate-model-authored-spec-execution.md) | Sandbox run_spec — isolate model-authored spec execution | open | high | 0019 | |
+| [0023](0023-live-model-driven-prompt-injection-red-team-on-a-hostile-fixture-page.md) | Live model-driven prompt-injection red-team on a hostile fixture page | open | high | 0019 | |
+| [0024](0024-openfin-live-rvm-verify-connectovercdp-on-real-runtime.md) | OpenFin live RVM verify (connectOverCDP on real runtime) | open | medium | 0019 | |
