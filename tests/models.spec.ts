@@ -28,7 +28,9 @@ test('resolveModel FAILS LOUD on an unknown id, listing the available ids', () =
 
 test('resolveModel is case- and whitespace-exact (a near-miss is an error, not a guess)', () => {
   expect(resolveModel(MODELS, 'GPT-5').ok).toBe(false); // wrong case → error, not a coerced match
-  expect(resolveModel(MODELS, ' gpt-5 ').ok).toBe(true); // surrounding whitespace is trimmed
+  // surrounding whitespace is trimmed AND the CANONICAL (trimmed) id is returned — so the harness
+  // opens the session with the validated id, not the padded string the operator typed.
+  expect(resolveModel(MODELS, ' gpt-5 ')).toEqual({ ok: true, model: 'gpt-5' });
 });
 
 test('resolveModel on an empty model list errors for any requested id', () => {
@@ -43,6 +45,13 @@ test('formatModelList renders one line per model with id and name', () => {
   expect(out.trim().split('\n').filter((l) => l.includes('claude-sonnet-4.6'))).toHaveLength(1);
   // the id (the thing you pass to --model) is present verbatim for every model
   for (const mi of MODELS) expect(out).toContain(mi.id);
+  // ids are left-aligned to a common column width, with the name following (no trailing space)
+  expect(out).toMatch(/^ {2}gpt-5 {14}GPT-5$/m); // 'gpt-5' padded to widest id (17) → 12 + 2-space sep
+});
+
+test('formatModelList leaves no trailing whitespace when a model has no name', () => {
+  const out = formatModelList([m('only-id', '')]);
+  expect(out).toMatch(/^ {2}only-id$/m); // name omitted → trimEnd, no dangling pad
 });
 
 test('formatModelList says so when there are no models', () => {

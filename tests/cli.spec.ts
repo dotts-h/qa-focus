@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { parseArgs } from '../bin/qa-focus.mjs';
+import { parseArgs, expandAliases } from '../bin/qa-focus.mjs';
 
 // The entrypoint is TypeScript (.mts), so run it through the tsx loader rather than bare node.
 const BIN = join(dirname(fileURLToPath(import.meta.url)), '../bin/qa-focus.mts');
@@ -74,4 +74,10 @@ test('--help lists the models command and the --list-models / --model options (#
   expect(out).toMatch(/^\s*models\b/m);
   expect(out).toContain('--list-models');
   expect(out).toContain('--model');
+});
+
+test('expandAliases maps --list-models onto the models command (and leaves others untouched)', () => {
+  expect(expandAliases(['--list-models'])).toEqual(['models']);
+  expect(expandAliases(['--list-models', '--whatever'])).toEqual(['models', '--whatever']);
+  expect(expandAliases(['explore', '--goal', 'x'])).toEqual(['explore', '--goal', 'x']); // unchanged
 });

@@ -117,9 +117,16 @@ Examples:
   qa-focus codify  --flow artifacts/explore-flow.json --spec todo-add
 `;
 
-function main(argv: string[]): number | null {
+/** Rewrite top-level command aliases (e.g. `--list-models` → the `models` command). Pure + exported
+ * so the alias mapping is unit-tested without spawning. */
+export function expandAliases(argv: string[]): string[] {
+  if (argv[0] === '--list-models') return ['models', ...argv.slice(1)];
+  return argv;
+}
+
+function main(argv0: string[]): number | null {
+  const argv = expandAliases(argv0);
   if (argv.length === 0 || argv[0] === '-h' || argv[0] === '--help') { process.stdout.write(HELP); return 0; }
-  if (argv[0] === '--list-models') argv = ['models', ...argv.slice(1)]; // alias → the `models` command
   if (argv[0] === '-v' || argv[0] === '--version') { process.stdout.write(version() + '\n'); return 0; }
   const { cmd, env, unknown, missing } = parseArgs(argv);
   const script = COMMANDS[cmd];

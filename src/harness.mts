@@ -63,14 +63,16 @@ export async function createGatedSession({ cli, model, tools, stepBudget, recenc
   // never silently fall back to the wrong one on a live, quota-burning run. Validate against the
   // login's actual model list before opening the session. Only pays the listModels round-trip when a
   // model was requested; an unset model uses the session default with no extra call.
+  let resolvedModel = model;
   if (model) {
     await client.start(); // connect so listModels works (idempotent — createSession would call it too)
     const r = resolveModel(await client.listModels(), model);
     if (!r.ok) { await client.stop?.(); throw new Error(`qa-focus: ${r.error}`); }
+    resolvedModel = r.model; // the canonical (trimmed) id — what we validated is what we open the session with
   }
 
   const session = await client.createSession({
-    ...(model ? { model } : {}),
+    ...(resolvedModel ? { model: resolvedModel } : {}),
     tools: defined,
     availableTools: new ToolSet().addCustom('*'), // the leash: no fs/shell/network tools exist
     streaming: !quiet, // emit incremental reasoning/message deltas for the live run stream (#0013)
