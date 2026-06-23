@@ -1,5 +1,7 @@
 node_modules/
 dist/
+vscode/out/
+*.vsix
 *.tsbuildinfo
 test-results/
 playwright-report/

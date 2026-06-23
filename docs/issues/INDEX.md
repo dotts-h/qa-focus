@@ -19,7 +19,7 @@ never a cycle).
 | id | title | status | children |
 |----|-------|--------|----------|
 | [0001](0001-v1-cli-deliverable.md) | v1 — CLI deliverable across web(chrome)+electron+openfin, no MCP | closed | 0002–0008 |
-| [0015](0015-epic-multi-host-runner-streamable-repl-headless-model-select-vs-code-participant.md) | Multi-host runner — streamable REPL, headless model-select, VS Code participant | open | 0016–0018 |
+| [0015](0015-epic-multi-host-runner-streamable-repl-headless-model-select-vs-code-participant.md) | Multi-host runner — streamable REPL, headless model-select, VS Code participant | closed | 0016–0018 |
 
 ## Issues
 
@@ -38,7 +38,7 @@ never a cycle).
 | [0012](0012-epic-observable-runs-live-thinking-output-stream-cost-accounting.md) | Epic: Observable runs — live thinking/output stream + cost accounting | closed | medium | — | |
 | [0013](0013-live-run-stream-reasoning-assistant-deltas-tool-events.md) | Live run stream (reasoning + assistant deltas + tool events) | closed | medium | 0012 | |
 | [0014](0014-cost-usage-accounting-tokens-ai-credits-on-direct-shell-runs.md) | Cost & usage accounting (tokens + AI-Credits, on direct shell runs) | closed | medium | 0012 | |
-| [0015](0015-epic-multi-host-runner-streamable-repl-headless-model-select-vs-code-participant.md) | Epic: Multi-host runner — streamable REPL, headless model-select, VS Code participant | open | medium | — | |
+| [0015](0015-epic-multi-host-runner-streamable-repl-headless-model-select-vs-code-participant.md) | Epic: Multi-host runner — streamable REPL, headless model-select, VS Code participant | closed | medium | — | |
 | [0016](0016-streamable-repl-polish-readline-stream-while-typing-adr-0008.md) | Streamable REPL polish — readline stream-while-typing (ADR 0008) | closed | medium | 0015 | |
 | [0017](0017-headless-run-mode-model-selection-model-list-models.md) | Headless run mode + model selection (--model / --list-models) | closed | medium | 0015 | |
-| [0018](0018-vs-code-qa-focus-chat-participant-extension-adr-0007-no-mcp.md) | VS Code @qa-focus chat participant extension (ADR 0007, no MCP) | open | medium | 0015 | |
+| [0018](0018-vs-code-qa-focus-chat-participant-extension-adr-0007-no-mcp.md) | VS Code @qa-focus chat participant extension (ADR 0007, no MCP) | closed | medium | 0015 | adr:0007 |
