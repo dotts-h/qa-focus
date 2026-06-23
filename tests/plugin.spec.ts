@@ -50,13 +50,21 @@ test('the plugin contributes a skill that exists with name + description frontma
   expect(skillFiles.length).toBeGreaterThanOrEqual(1);
   const body = readFileSync(skillFiles[0], 'utf8');
   expect(body.startsWith('---')).toBe(true); // YAML frontmatter
-  expect(body).toMatch(/\nname:\s*\S/); // name field
   expect(body).toMatch(/\ndescription:\s*\S/); // description field
-  expect(body.toLowerCase()).toContain('qa-focus'); // the skill actually teaches driving qa-focus
+  // the frontmatter name is the loader's addressing key — it MUST match the skill dir name, else the
+  // skill registers under a mismatched id.
+  const fmName = body.match(/\nname:\s*(\S+)/)?.[1];
+  const dirName = dirname(skillFiles[0]).split('/').pop();
+  expect(fmName).toBe(dirName);
+  expect(fmName).toBe('qa-focus');
+  // the skill teaches the GIT install (ADR 0006 — NO npm registry), not a bare `npm i -g qa-focus`.
+  expect(body).toContain('github:dotts-h/qa-focus');
+  expect(body).not.toMatch(/npm i(?:nstall)? -g qa-focus(?!\S)/); // no registry-form install slips in
 });
 
 test('marketplace.json lists the plugin and points source at the real plugin dir', () => {
   const mk = readJSON(join(ROOT, '.github/plugin/marketplace.json'));
+  const m = readJSON(join(PLUGIN_DIR, 'plugin.json'));
   expect(mk.name).toMatch(KEBAB);
   expect(mk.owner?.name).toBeTruthy();
   expect(Array.isArray(mk.plugins)).toBe(true);
@@ -65,6 +73,10 @@ test('marketplace.json lists the plugin and points source at the real plugin dir
   expect(entry.source).toBeTruthy();
   // the source path resolves to the plugin dir that holds plugin.json
   expect(existsSync(join(ROOT, entry.source, 'plugin.json')), `source ${entry.source} holds plugin.json`).toBe(true);
+  // the documented install string is `<plugin>@<marketplace>` = `qa-focus@qa-focus` — all three names
+  // (plugin.json.name, marketplace.name, the entry name) must agree or that command breaks.
+  expect(mk.name).toBe('qa-focus');
+  expect(entry.name).toBe(m.name);
 });
 
 test('the marketplace bundles no MCP either (entry-level guard)', () => {
