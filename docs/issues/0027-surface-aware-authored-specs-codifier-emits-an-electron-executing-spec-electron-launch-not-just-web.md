@@ -1,19 +1,51 @@
 ---
 id: 0027
 title: Surface-aware authored specs — codifier emits an Electron-executing spec (_electron.launch), not just web
-status: open
+status: closed
 severity: medium
 group: 0025
 depends_on: [0026]
 github:
 forgejo:
 links:
-  adr: 0005
+  adr: [0005, 0011]
   prs: []
   issues: [0026]
   regression:
-assets: []
+assets: [0027-electron-executing-spec.ts]
 ---
+
+> **Done 2026-06-23 (ADR 0011).** The codifier is now surface-aware: a `SURFACE=electron` run authored
+> an `_electron.launch` spec that passed `run_spec` (3/3) against the real Electron app, live under
+> `xvfb` — evidence `assets/0027-electron-executing-spec.ts`.
+
+## Outcome
+- **`specShapeInstruction(surface, {appPath})`** (`src/standards.mts`) is the single home for the
+  surface-specific spec shape; the codify prompt injects it by `SURFACE`. Electron → `_electron.launch`
+  in `beforeAll`, first window bound to `page` (so gate-accepted `page.getByRole(...)` reuse verbatim),
+  no `goto`; web/openfin → the URL-navigated shape unchanged.
+- **App path**: `QA_ELECTRON_APP` added to the `safeSpecEnv` allowlist (a path, not a secret); the
+  template reads it with the codifier-supplied path baked as a literal fallback (portable + standalone).
+- **Codifier `electronArgs` fix**: `bin/codify.mts` now passes `electronArgs` to `openSurface` (it
+  didn't before — so `SURFACE=electron` codify never actually drove the Electron app) and seeds
+  `QA_ELECTRON_APP` from them.
+- **Gates unchanged**: the standards linter + capability scan already accept the Electron shape
+  (`@playwright/test`/`playwright` imports are not host-capability modules) — proven by the guard.
+
+## Acceptance
+- [x] `SURFACE=electron` codify run authors an `_electron.launch`-based spec (not `page.goto`) —
+      live-verified, 3/3 green on the real Electron app (`assets/0027-electron-executing-spec.ts`).
+- [x] `run_spec` runs it green on Electron under `xvfb`; web specs unaffected (189 deterministic green).
+- [x] Standards/capability gates pass the Electron template; deterministic guard
+      `tests/authored-spec-shape.spec.ts` (5 tests) covers the shape + both gates + the env allowlist.
+
+## Notes
+The worked example is captured as **evidence** (`assets/0027-electron-executing-spec.ts`), not
+committed under `tests/authored/`: an Electron-executing spec needs the `electron` binary + a display,
+which CI deliberately lacks (electron is opt-in — `fixtures/electron/README.md`), so committing it
+would make `RUN_AUTHORED` require electron everywhere. The canonical shape is committed *inside* the
+deterministic guard (`ELECTRON_SPEC`), which proves it clears both gates without needing the binary.
+Closes epic #0025 (last loop-completion gap). See ADR 0011.
 
 ## Summary
 Surfaced by #0026's live Electron loop. The codifier authors a **web-shaped** spec — `test(..., async ({

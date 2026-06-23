@@ -67,6 +67,9 @@ const ENV_ALLOWLIST = [
   'TMPDIR', 'TEMP', 'TMP', 'DISPLAY', 'XAUTHORITY', 'XDG_RUNTIME_DIR', 'XDG_CONFIG_HOME', 'XDG_CACHE_HOME',
   'CI', 'NODE_PATH', 'PW_CHANNEL', 'PLAYWRIGHT_BROWSERS_PATH', 'PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD',
   'STORAGE_STATE', 'AUTH_STATE',
+  // QA_ELECTRON_APP is the app DIRECTORY an Electron-executing authored spec launches via
+  // `_electron.launch` (#0027, ADR 0011) — a path, not a secret, so it survives the env scrub.
+  'QA_ELECTRON_APP',
 ];
 
 /** Build a minimal, allowlisted environment for executing an untrusted authored spec — only the vars

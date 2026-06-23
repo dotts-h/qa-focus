@@ -83,9 +83,11 @@ ahead: the OpenFin infra (Mac mini vs Windows VM) and whether to spend credits o
     authored a gate-clean spec whose role+name locators were validated against the live Electron
     window. The live run caught + fixed a real production bug — the in-process snapshot threw
     `__name is not defined` under the `tsx`/esbuild runtime the binaries use (REGRESSIONS #5).
-    **Remaining (follow-up #0027):** the codifier authors a *web-shaped* spec (`{ page }` + `goto`)
-    regardless of surface, so the executed `run_spec` runs on web; a surface-aware authored-spec
-    template that executes against Electron (`_electron.launch`) is the next step.
+    The codifier is now **surface-aware** (#0027, ADR 0011): `SURFACE=electron` authors an
+    `_electron.launch` spec that `run_spec` runs against the real Electron app (window bound to `page`
+    so gate-accepted locators reuse verbatim), not a `page.goto` web spec — live-verified
+    (evidence `docs/issues/assets/0027-electron-executing-spec.ts`; deterministic guard
+    `tests/authored-spec-shape.spec.ts`).
   - **openfin** — `chromium.connectOverCDP(CDP_URL)`; multi-window via `contexts()/pages()` —
     **LIVE-VERIFIED** on a real OpenFin RVM (runtime 44.146.101.4) on the M4 Mac mini (#0024,
     2026-06-24): the gate grades `heading "Todo"` inside an OpenFin window, raw CSS bounces to the
