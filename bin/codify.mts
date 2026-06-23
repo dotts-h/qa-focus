@@ -29,7 +29,7 @@ import { attachInProcess } from '../src/inproc-driver.mjs';
 import { makeBrowserTools } from '../src/browser-tools.mjs';
 import { makeCodifyTools } from '../src/codify-tools.mjs';
 import { resolveCopilotCli } from '../src/copilot-path.mjs';
-import { STANDARDS_PROMPT } from '../src/standards.mjs';
+import { STANDARDS_PROMPT, specShapeInstruction } from '../src/standards.mjs';
 import { renderCostSummary } from '../src/cost.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -49,6 +49,11 @@ const GOAL = process.env.GOAL || FLOW?.goal || 'Harden the main add-to-cart flow
 const SPEC_NAME = process.env.SPEC_NAME || 'authored-flow';
 const ALLOWLIST = (process.env.ALLOWLIST || 'localhost').split(',');
 const CDP_PORT = Number(process.env.CDP_PORT || 9222);
+const SURFACE = process.env.SURFACE || 'web';
+// Electron launch args (app DIRECTORY + flags), as for the explorer. The app path (first
+// non-flag token) seeds the Electron-executing authored spec's `_electron.launch` (#0027, ADR 0011).
+const ELECTRON_ARGS = (process.env.ELECTRON_ARGS || '').split(' ').filter(Boolean);
+const ELECTRON_APP = ELECTRON_ARGS.find((a) => !a.startsWith('-')) || 'fixtures/electron';
 // Live run stream is default-on; silence it for piped/CI runs (#0013).
 const QUIET = !!process.env.QA_QUIET || process.argv.includes('--quiet');
 // Optional credits→$ rate (USD per AI-Credit) for the cost summary's $ estimate (#0014).
@@ -58,8 +63,14 @@ const log = (...a: unknown[]): void => console.log('[codify]', ...a);
 async function main(): Promise<void> {
   const allow = makeAllowlist(ALLOWLIST);
 
+  // The Electron-executing authored spec reads QA_ELECTRON_APP (allowlisted through safeSpecEnv) to
+  // know which app to launch; bake it from ELECTRON_ARGS so run_spec resolves it (the spec also
+  // carries the path as a literal fallback). Don't clobber an explicit override.
+  if (SURFACE === 'electron' && !process.env.QA_ELECTRON_APP) process.env.QA_ELECTRON_APP = ELECTRON_APP;
+
   const surface = await openSurface({
-    kind: process.env.SURFACE || 'web',
+    kind: SURFACE,
+    electronArgs: ELECTRON_ARGS,
     channel: process.env.PW_CHANNEL,
     cdpPort: CDP_PORT,
     headless: !process.env.HEADED,
@@ -114,9 +125,7 @@ async function main(): Promise<void> {
         'top of the authored spec (a tolerant best-effort click) so the durable test is robust to it.\n' +
         '2. For every element the test will act on or assert, call propose_locator — use the EXACT Playwright ' +
         'expression it returns back (it is gate-graded; a rejection names the better tier — follow it).\n' +
-        '3. Call write_spec with the FULL .spec.ts source: a single test(), import { test, expect } from "@playwright/test", ' +
-        'navigate by full URL, web-first assertions only (await expect(locator).toBeVisible()), NO hard waits, NO networkidle, ' +
-        'NO raw element handles, NO XPath. Reuse the gate-accepted locator expressions verbatim.\n' +
+        `3. ${specShapeInstruction(SURFACE, { appPath: ELECTRON_APP })}\n` +
         '4. Call run_spec. If it FAILS, read the output, fix the spec (or re-propose locators on the live page), and run_spec again until it PASSES.\n' +
         'Stay on the allowlisted app. Finish by reporting the authored spec path and the final run result.',
     },

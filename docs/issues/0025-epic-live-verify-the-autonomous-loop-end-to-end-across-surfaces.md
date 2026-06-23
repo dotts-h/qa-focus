@@ -1,19 +1,26 @@
 ---
 id: 0025
 title: Epic: live-verify the autonomous loop end-to-end across surfaces
-status: open
+status: closed
 severity: medium
 group: 
 depends_on: []
 github:
 forgejo:
 links:
-  adr:
+  adr: [0005, 0011]
   prs: []
   issues: []
-  regression:
+  regression: 5
 assets: []
 ---
+
+> **Epic complete 2026-06-23.** Both children landed: #0026 (live Electron explore→codify loop +
+> fixed the in-process driver `__name` crash, REGRESSIONS #5) and #0027 (surface-aware authored specs
+> — `SURFACE=electron` authors an `_electron.launch` spec that runs on the real Electron app, ADR
+> 0011). The autonomous loop is now live-verified end-to-end on Electron, and the live runs caught +
+> fixed two real gaps (the `__name` snapshot crash; codify not passing `electronArgs`). The roadmap
+> is exhausted again — next is a product call on a new pillar (PLAN "When the pick is ambiguous").
 
 ## Summary
 v1 (#0001), the multi-host runner (#0015), and the v1.1 remainders (#0019) are all closed. A
