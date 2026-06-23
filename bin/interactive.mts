@@ -92,6 +92,7 @@ async function main(): Promise<void> {
   // to stdout; once `rl` exists, `streamLine` line-buffers and renders each line ABOVE the live prompt.
   let streamLine: (chunk: string) => void = (chunk) => process.stdout.write(chunk);
   let flushLine: () => void = () => {}; // emit any buffered partial line at a turn boundary (#0016)
+  let clearPrompt: () => void = () => {}; // erase the live prompt line before post-turn prints (TTY)
 
   // The control model (hard leash + recency) lives in src/harness.mts (ADR 0002). No step
   // budget here — turns are human-paced over stdin, so the human is the circuit-breaker.
@@ -128,6 +129,9 @@ async function main(): Promise<void> {
     const lineWriter = createLineWriter((line) => writeAbovePrompt(promptSurface, line));
     streamLine = (chunk) => lineWriter.write(chunk);
     flushLine = () => lineWriter.flush();
+    // the final line-flush leaves the prompt drawn; clear it so the turn's summary prints (findings,
+    // model summary, errors) start on a fresh line instead of tangling onto `you> `.
+    clearPrompt = () => { promptSurface.clearLine(); promptSurface.cursorTo0(); };
   }
   rl.prompt();
   for await (const line of rl) {
@@ -143,11 +147,13 @@ async function main(): Promise<void> {
       // When streaming (not quiet) the answer already rendered live — flush the turn's open block
       // (renderer's trailing newline → the line-writer emits the final line); only quiet reprints.
       if (QUIET) { if (text) console.log(`\n${text}\n`); } else { flushStream(); flushLine(); }
+      clearPrompt(); // drop the live prompt line before the turn summary prints (no-op when not a TTY)
       if (findings.length > before) {
         log(`findings (+${findings.length - before}):`);
         for (const f of findings.slice(before)) console.log(`  - [${f.severity || '?'}] ${f.title}`);
       }
     } catch (e: any) {
+      clearPrompt();
       console.error('[qa] turn failed:', e?.message || e);
     }
     rl.prompt();

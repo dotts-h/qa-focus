@@ -23,6 +23,17 @@ test('createLineWriter splits multiple newlines in a single chunk', () => {
   expect(out).toEqual(['a', 'b', 'c']);
 });
 
+test('createLineWriter passes through blank lines (the stream\'s block separators) and ignores empty chunks', () => {
+  const out: string[] = [];
+  const w = createLineWriter((l) => out.push(l));
+  w.write(''); // empty chunk → nothing
+  expect(out).toEqual([]);
+  w.write('\n'); // a lone newline → one blank line (a separator row, rendered as a bare newline)
+  expect(out).toEqual(['']);
+  w.write('a\n\nb\n'); // blank line BETWEEN content survives (block separator)
+  expect(out).toEqual(['', 'a', '', 'b']);
+});
+
 test('createLineWriter.flush emits a trailing partial line, then is idempotent', () => {
   const out: string[] = [];
   const w = createLineWriter((l) => out.push(l));
