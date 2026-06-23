@@ -14,7 +14,7 @@ import { makeAllowlist, guardContext } from '../src/allowlist.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, '../fixtures/hostile/index.html');
-const EXFIL = 'http://evil.attacker.example/steal?data=secrets';
+const EXFIL = 'https://evil.attacker.example/steal?data=secrets';
 
 let server: ChildProcess;
 let browser: Browser;
