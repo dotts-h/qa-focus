@@ -34,6 +34,11 @@ export interface GatedSessionOptions {
    * `QA_QUIET`): no event subscription, no writes, and `streaming` left off to save the deltas.
    */
   quiet?: boolean;
+  /**
+   * Sink for the live run stream's rendered text (#0016). Default: stdout. The interactive REPL
+   * passes a readline-aware writer so streamed lines render above its live input prompt (ADR 0008).
+   */
+  streamWrite?: (s: string) => void;
 }
 
 /** The created session, its client, the set of allowed tool names, and the live-stream controls. */
@@ -52,7 +57,7 @@ export interface GatedSession {
 /**
  * Create a session whose entire capability surface is the given gated tools.
  */
-export async function createGatedSession({ cli, model, tools, stepBudget, recency, quiet }: GatedSessionOptions): Promise<GatedSession> {
+export async function createGatedSession({ cli, model, tools, stepBudget, recency, quiet, streamWrite }: GatedSessionOptions): Promise<GatedSession> {
   const defined = tools.map(({ name, def }) => defineTool(name, def));
   const toolNames = new Set(defined.map((t) => t.name).filter(Boolean));
   let steps = 0;
@@ -94,7 +99,7 @@ export async function createGatedSession({ cli, model, tools, stepBudget, recenc
   // Both observability features ride this one seam (ADR 0002), so all three runners get them for
   // free. The live run stream (#0013) honours `quiet`; the cost meter (#0014) does NOT — usage is
   // reported even on piped/CI runs. Both pure-accounting halves live in src/{stream,cost}.mts.
-  const { flush: flushStream, detach: detachStream } = attachStreamRenderer(session, { quiet });
+  const { flush: flushStream, detach: detachStream } = attachStreamRenderer(session, { quiet, write: streamWrite });
   const { getUsage } = attachCostMeter(session);
 
   return { session, client, toolNames, flushStream, detachStream, getUsage };

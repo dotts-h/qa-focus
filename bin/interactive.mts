@@ -32,6 +32,7 @@ import { makeCodifyTools } from '../src/codify-tools.mjs';
 import { resolveCopilotCli } from '../src/copilot-path.mjs';
 import { STANDARDS_PROMPT } from '../src/standards.mjs';
 import { renderCostSummary } from '../src/cost.mjs';
+import { createLineWriter, writeAbovePrompt, readlinePromptSurface } from '../src/repl.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 // Specs, artifacts and the run_spec gate belong in the USER's project (their playwright.config),
@@ -86,12 +87,19 @@ async function main(): Promise<void> {
     ? await attachCli({ cdpEndpoint, page, session: 'qa-focus-repl' })
     : await attachInProcess({ page, session: 'qa-focus-repl' });
 
+  // Stream sink (#0016, ADR 0008): the session is created before the readline interface exists, so
+  // route the live stream through a late-bound writer. Until the REPL wires it (below), it falls back
+  // to stdout; once `rl` exists, `streamLine` line-buffers and renders each line ABOVE the live prompt.
+  let streamLine: (chunk: string) => void = (chunk) => process.stdout.write(chunk);
+  let flushLine: () => void = () => {}; // emit any buffered partial line at a turn boundary (#0016)
+
   // The control model (hard leash + recency) lives in src/harness.mts (ADR 0002). No step
   // budget here — turns are human-paced over stdin, so the human is the circuit-breaker.
   const { session, client, flushStream, detachStream, getUsage } = await createGatedSession({
     cli: CLI,
     model: process.env.COPILOT_MODEL,
     quiet: QUIET, // stream the model's reasoning/output/tool calls live unless silenced (#0013)
+    streamWrite: (chunk) => streamLine(chunk), // render above the live prompt (#0016)
     tools: [
       ...makeBrowserTools({ getCtx, allow, allowlist: ALLOWLIST, sink, findings, saveState: surface.saveState, statePath: process.env.STORAGE_STATE }),
       ...makeCodifyTools({ getCtx, root: ROOT, facts }),
@@ -111,6 +119,16 @@ async function main(): Promise<void> {
 
   log(`ready — ${surface.kind} surface, allowlist [${ALLOWLIST.join(', ')}]${process.env.HEADED ? ', HEADED' : ''}. Type a goal; "exit" to finish.`);
   const rl = createInterface({ input: process.stdin, output: process.stdout, prompt: 'you> ' });
+  // Wire the live stream (#0016, ADR 0008): line-buffer the model's partial chunks and render each
+  // complete line ABOVE the prompt, preserving any input the user is typing ahead. Only on a real
+  // TTY — a piped run keeps plain stdout (no prompt redraws) so the output stays clean for capture.
+  const liveStream = !QUIET && !!process.stdout.isTTY;
+  if (liveStream) {
+    const promptSurface = readlinePromptSurface(rl, process.stdout);
+    const lineWriter = createLineWriter((line) => writeAbovePrompt(promptSurface, line));
+    streamLine = (chunk) => lineWriter.write(chunk);
+    flushLine = () => lineWriter.flush();
+  }
   rl.prompt();
   for await (const line of rl) {
     const goal = line.trim();
@@ -118,12 +136,13 @@ async function main(): Promise<void> {
     if (['exit', 'quit', ':q'].includes(goal.toLowerCase())) break;
     try {
       const before = findings.length;
+      if (liveStream) rl.prompt(); // keep the prompt LIVE during the turn (TTY) for type-ahead
       const res = await session.sendAndWait({ prompt: goal }, 240_000);
       const r: any = res;
       const text = typeof r === 'string' ? r : r?.text ?? r?.content ?? r?.data?.content ?? '';
       // When streaming (not quiet) the answer already rendered live — flush the turn's open block
-      // (one trailing newline, renderer reset for the next turn); only the quiet/piped path reprints.
-      if (QUIET) { if (text) console.log(`\n${text}\n`); } else flushStream();
+      // (renderer's trailing newline → the line-writer emits the final line); only quiet reprints.
+      if (QUIET) { if (text) console.log(`\n${text}\n`); } else { flushStream(); flushLine(); }
       if (findings.length > before) {
         log(`findings (+${findings.length - before}):`);
         for (const f of findings.slice(before)) console.log(`  - [${f.severity || '?'}] ${f.title}`);
