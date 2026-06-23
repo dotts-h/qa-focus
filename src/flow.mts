@@ -21,7 +21,7 @@ export interface FlowStep {
   name?: string;
   text?: string;
   key?: string;
-  frame?: string;
+  frame?: string | string[]; // a single <iframe> selector, or an outer→inner chain for nested frames
   submit?: boolean;
   /** the action was REFUSED by the leash (e.g. an off-allowlist goto). Recorded as evidence — a
    * blocked attempt the red-team (#0009) can assert on — but excluded from the codifier seed. */
@@ -78,7 +78,7 @@ function describeStep(s: FlowStep): string {
     case 'click':  return `click the ${s.role || 'element'}${s.name ? ` "${s.name}"` : ''}`;
     case 'fill':   return `fill the ${s.role || 'field'}${s.name ? ` "${s.name}"` : ''} with "${s.text ?? ''}"${s.submit ? ' and press Enter' : ''}`;
     case 'press':  return `press ${s.key}`;
-    case 'expect': return `assert visible: ${s.role ? `${s.role}${s.name ? ` "${s.name}"` : ''}` : `text "${s.text ?? ''}"`}${s.frame ? ` (inside frame ${s.frame})` : ''}`;
+    case 'expect': return `assert visible: ${s.role ? `${s.role}${s.name ? ` "${s.name}"` : ''}` : `text "${s.text ?? ''}"`}${s.frame ? ` (inside frame ${Array.isArray(s.frame) ? s.frame.join(' › ') : s.frame})` : ''}`;
     default:       return JSON.stringify(s);
   }
 }

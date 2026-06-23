@@ -62,6 +62,14 @@ test('a recorded flow round-trips into an ordered codifier seed', () => {
   expect(expectAt).toBeGreaterThan(clickAt);
 });
 
+test('a nested-frame expect renders the frame chain readably in the seed (not a comma blob) (#0021)', () => {
+  const flow = newFlow({ goal: 'g', startUrl: 'http://x', surface: 'web' });
+  recordStep(flow, { action: 'expect', role: 'button', name: 'Frame Submit', frame: ['iframe[title="Outer"]', 'iframe[title="Inner"]'] });
+  const seed = flowToSeed(flow);
+  expect(seed).toContain('(inside frame iframe[title="Outer"] › iframe[title="Inner"])');
+  expect(seed).not.toContain('Outer"],iframe'); // not the raw Array.toString comma blob
+});
+
 test('recordStep on an undefined flow is a no-op (tools stay shareable)', () => {
   expect(() => recordStep(undefined, { action: 'goto', url: 'x' })).not.toThrow();
 });

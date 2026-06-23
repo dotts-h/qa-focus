@@ -83,6 +83,24 @@ test('iframe: a field inside the frame is gradeable at the role tier', async () 
   expect(g.ok).toBe(true);
 });
 
+test('nested iframes (2 levels): the gate chains frameLocator and grades the deepest element (#0021)', async () => {
+  const page = await openAt('/nested-outer.html');
+  const chain = ['iframe[title="Outer"]', 'iframe[title="Inner"]'];
+  const g = await gradeLocator(page, { tier: 'role', role: 'button', name: 'Frame Submit', frame: chain });
+  expect(g.ok).toBe(true);
+  expect(g.frameDegraded).toBe(false); // modern <iframe> — no degrade
+  expect(render({ tier: 'role', role: 'button', name: 'Frame Submit', frame: chain }))
+    .toBe(`page.frameLocator('iframe[title="Outer"]').frameLocator('iframe[title="Inner"]').getByRole('button', { name: 'Frame Submit' })`);
+});
+
+test('nested iframes: a single-element frame chain is equivalent to the legacy string form', async () => {
+  const page = await open();
+  const g = await gradeLocator(page, { tier: 'role', role: 'button', name: 'Frame Submit', frame: ['iframe[title="Editor"]'] });
+  expect(g.ok).toBe(true);
+  expect(render({ tier: 'role', role: 'button', name: 'Frame Submit', frame: ['iframe[title="Editor"]'] }))
+    .toBe(`page.frameLocator('iframe[title="Editor"]').getByRole('button', { name: 'Frame Submit' })`);
+});
+
 test('legacy <frameset>/<frame>: frameLocator cannot reach it, the gate DEGRADES to the Frame API (by name) and grades', async () => {
   const page = await openAt('/frameset.html');
   // frame-middle is nested inside frame-top — a page CSS selector can't reach it; only
