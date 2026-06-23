@@ -7,6 +7,8 @@
   "license": "Apache-2.0",
   "scripts": {
     "test": "playwright test",
+    "lint": "for f in bin/*.mjs src/*.mjs extension/qa-focus/*.mjs; do node --check \"$f\" || exit 1; done && bash scripts/check-workflows.sh",
+    "doctor": "C=\"${COOKBOOK:-$CLAUDE_PLUGIN_ROOT/cookbook}\"; if [ -d \"$C/recipes\" ]; then for r in core quality security issues loop contracts release; do bash \"$C/recipes/$r/scripts/doctor.sh\" .; done; else echo 'recipe-doctor: set COOKBOOK to the cookbook plugin dir to run conformance checks (skipped)'; fi",
     "explore": "node bin/explore.mjs",
     "codify": "node bin/codify.mjs",
     "interactive": "node bin/interactive.mjs"

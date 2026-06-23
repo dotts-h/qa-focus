@@ -4,5 +4,10 @@ playwright-report/
 *.zip
 artifacts/
 state.json
+# storageState captures contain LIVE auth cookies/localStorage — never commit them.
+*.storage-state.json
+storage-state*.json
+storageState*.json
+auth.json
 .playwright-cli/
 .playwright/

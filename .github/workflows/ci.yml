@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: deterministic gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # Guard the CI/release workflow invariants (no feature-branch double-runs, etc.).
+      - name: Check workflows
+        run: bash scripts/check-workflows.sh
+
+      # Bundled Chromium (no PW_CHANNEL) — the deterministic suite must not need branded Chrome.
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      # Runs the 29 offline specs only: LIVE tests skip (no LIVE) and authored specs are
+      # excluded (no RUN_AUTHORED), so CI never hits the network or the model.
+      - name: Run tests
+        run: npm test

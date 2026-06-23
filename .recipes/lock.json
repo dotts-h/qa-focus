@@ -1,0 +1,105 @@
+{
+  "recipes": [
+    {
+      "name": "contracts",
+      "version": "0.1.0",
+      "tier": "M",
+      "answers": {
+        "project_name": "qa-focus",
+        "fleet_member": "false",
+        "fleet_name": "my-fleet",
+        "default_branch": "main"
+      },
+      "installedAt": "2026-06-23T08:09:21Z"
+    },
+    {
+      "name": "core",
+      "version": "0.2.0",
+      "tier": "M",
+      "answers": {
+        "project_name": "qa-focus",
+        "project_description": "Control-first agentic QA on the GitHub Copilot SDK + Playwright",
+        "default_branch": "main",
+        "lint_command": "npm run lint",
+        "test_command": "npm test"
+      },
+      "installedAt": "2026-06-23T08:08:44Z"
+    },
+    {
+      "name": "issues",
+      "version": "0.3.0",
+      "tier": "M",
+      "answers": {
+        "project_name": "qa-focus",
+        "ci_flavor": "github",
+        "default_branch": "main"
+      },
+      "installedAt": "2026-06-23T08:09:14Z"
+    },
+    {
+      "name": "loop",
+      "version": "0.2.0",
+      "tier": "M",
+      "answers": {
+        "project_name": "qa-focus",
+        "default_branch": "main",
+        "lint_command": "make lint",
+        "test_command": "make test",
+        "ci_flavor": "github"
+      },
+      "installedAt": "2026-06-23T08:09:14Z"
+    },
+    {
+      "name": "quality",
+      "version": "0.6.0",
+      "tier": "M",
+      "answers": {
+        "project_name": "qa-focus",
+        "default_branch": "main",
+        "ci_flavor": "github",
+        "runner_label": "ubuntu-latest",
+        "build_system": "npm",
+        "lint_command": "npm run lint",
+        "test_command": "npm test",
+        "coverage_floor": "65",
+        "node_version": "20",
+        "fuzz_enabled": "no",
+        "fuzz_command": "go test ./... -run x -fuzz . -fuzztime 20s",
+        "monorepo": "no",
+        "modules": "[]",
+        "license_header": "no",
+        "license_spdx": ""
+      },
+      "installedAt": "2026-06-23T08:08:51Z"
+    },
+    {
+      "name": "release",
+      "version": "0.3.0",
+      "tier": "M",
+      "answers": {
+        "project_name": "qa-focus",
+        "ci_flavor": "github",
+        "runner_label": "ubuntu-latest",
+        "artifact_name": "qa-focus",
+        "release_build_command": "echo \"TODO(backfill) build $VERSION artifacts into dist/\" > dist/BUILD_TODO.txt",
+        "default_branch": "main"
+      },
+      "installedAt": "2026-06-23T08:09:21Z"
+    },
+    {
+      "name": "security",
+      "version": "0.1.0",
+      "tier": "M",
+      "answers": {
+        "project_name": "qa-focus",
+        "default_branch": "main",
+        "ci_flavor": "github",
+        "runner_label": "ubuntu-latest",
+        "sast_command": "semgrep --error --config auto",
+        "dep_audit_command": "npm audit --audit-level=high",
+        "secret_scan": "yes"
+      },
+      "installedAt": "2026-06-23T08:09:06Z"
+    }
+  ]
+}

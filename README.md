@@ -1,5 +1,8 @@
 # qa-focus
 
+[![CI](https://github.com/dotts-h/qa-focus/actions/workflows/ci.yml/badge.svg)](https://github.com/dotts-h/qa-focus/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
 Control-first **agentic QA** on the GitHub Copilot SDK + Playwright. Two modes that chain:
 
 - **Explore** (`bin/explore.mjs`) — an autonomous browser agent roams an app toward a high-level
@@ -51,11 +54,12 @@ GOAL="harden the add-to-cart flow" SPEC_NAME="add-to-cart" node bin/codify.mjs  
 
 ## Status
 
-- **Proven:** the locator-priority gate (ladder + scoped tier + graceful degradation) on a clean app
-  and a real hostile one; the URL allowlist; the codifier end-to-end on the installed login.
-- **First cut, not yet live-verified:** `bin/explore.mjs` (autonomous explorer) and
-  `extension/qa-focus/extension.mjs` (interactive install) — unit-tested parts pass; a live
-  interactive/explore smoke is the next step.
+- **Proven:** the locator-priority gate (ladder + scoped tier + graceful degradation, incl. iframes,
+  open/closed shadow DOM, and legacy `<frameset>`) on clean, hostile, and real big apps; the URL
+  allowlist; the autonomous **explorer** (live, against automationexercise.com / the-internet); the
+  autonomous **codifier** end-to-end (discovered flow → durable, gate-clean, passing Playwright spec).
+- **Also in:** deterministic axe-core a11y pass, `storageState` auth reuse, consent-banner handling,
+  and the gated-session control model in one seam (`src/harness.mjs`, ADR 0002).
 
 See `docs/ARCHITECTURE.md`.
 
