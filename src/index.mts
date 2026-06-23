@@ -11,8 +11,12 @@ export { newFlow, parseSnapshotRefs, recordStep, flowToSeed, isFlow } from './fl
 export type { Flow, FlowStep } from './flow.mjs';
 
 // Self-healing locator recovery.
-export { healLocator, healFromTrace, extractTraceContext } from './healer.mjs';
+export { healLocator, healFromTrace, extractTraceContext, healFromSnapshot } from './healer.mjs';
 export type { HealResult, TraceContext } from './healer.mjs';
+
+// Purpose-built DOM snapshot store feeding the trace-driven healer (ADR 0009).
+export { createSnapshotStore } from './snapshot-store.mjs';
+export type { SnapshotStore } from './snapshot-store.mjs';
 
 // Playwright-standards linter.
 export { lintSpec, renderViolations, STANDARDS_PROMPT } from './standards.mjs';
