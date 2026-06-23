@@ -27,20 +27,40 @@ const VALUE_FLAGS = {
 const BOOL_FLAGS = { '--headed': 'HEADED', '--force-open-shadow': 'FORCE_OPEN_SHADOW' };
 
 /**
- * Parse argv (without node/script) into { cmd, env, unknown }. Pure + exported so the
- * mapping is unit-tested without spawning a harness.
+ * Parse argv (without node/script) into { cmd, env, unknown, missing }. Pure + exported so
+ * the mapping is unit-tested without spawning a harness. Supports `--flag value` and
+ * `--flag=value`; a value flag with no value is reported in `missing` (never silently
+ * swallowed into a wrong harness default).
  */
 export function parseArgs(argv) {
   const [cmd, ...rest] = argv;
   const env = {};
   const unknown = [];
+  const missing = [];
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
-    if (BOOL_FLAGS[a]) env[BOOL_FLAGS[a]] = '1';
-    else if (VALUE_FLAGS[a]) env[VALUE_FLAGS[a]] = rest[++i];
-    else unknown.push(a);
+    // --flag=value form
+    if (a.startsWith('--') && a.includes('=')) {
+      const eq = a.indexOf('=');
+      const key = a.slice(0, eq);
+      if (VALUE_FLAGS[key]) env[VALUE_FLAGS[key]] = a.slice(eq + 1);
+      else unknown.push(a);
+      continue;
+    }
+    if (BOOL_FLAGS[a]) { env[BOOL_FLAGS[a]] = '1'; continue; }
+    if (VALUE_FLAGS[a]) {
+      const next = rest[i + 1];
+      // Don't consume a missing value (or the next flag) — that would silently fall back to a
+      // harness default (e.g. a wrong GOAL on a live, quota-burning run). A value that
+      // legitimately starts with -- can be passed via the --flag=value form.
+      if (next === undefined || next.startsWith('--')) { missing.push(a); continue; }
+      env[VALUE_FLAGS[a]] = next;
+      i++;
+      continue;
+    }
+    unknown.push(a);
   }
-  return { cmd, env, unknown };
+  return { cmd, env, unknown, missing };
 }
 
 function version() {
@@ -68,7 +88,9 @@ Options (mapped onto the harness env contract):
   --steps <n>           step budget / circuit-breaker (STEP_BUDGET)
   --model <id>          model override (COPILOT_MODEL)
   --storage-state <p>   reuse a captured login (STORAGE_STATE)
+  --cdp-url <url>       attach over CDP, e.g. openfin (CDP_URL)
   --headed              run headed (HEADED)
+  --force-open-shadow   pierce closed shadow roots (FORCE_OPEN_SHADOW)
   -h, --help            show this help
   -v, --version         show version
 
@@ -80,9 +102,10 @@ Examples:
 function main(argv) {
   if (argv.length === 0 || argv[0] === '-h' || argv[0] === '--help') { process.stdout.write(HELP); return 0; }
   if (argv[0] === '-v' || argv[0] === '--version') { process.stdout.write(version() + '\n'); return 0; }
-  const { cmd, env, unknown } = parseArgs(argv);
+  const { cmd, env, unknown, missing } = parseArgs(argv);
   const script = COMMANDS[cmd];
   if (!script) { process.stderr.write(`qa-focus: unknown command '${cmd}'\n\n` + HELP); return 2; }
+  if (missing.length) { process.stderr.write(`qa-focus: missing value for: ${missing.join(' ')}\n\n` + HELP); return 2; }
   if (unknown.length) { process.stderr.write(`qa-focus: unknown option(s): ${unknown.join(' ')}\n\n` + HELP); return 2; }
   const child = spawn(process.execPath, [join(HERE, script)], { stdio: 'inherit', env: { ...process.env, ...env } });
   child.on('exit', (code) => process.exit(code ?? 0));
