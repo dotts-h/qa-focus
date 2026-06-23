@@ -30,8 +30,9 @@ endpoint). Add an **in-process** action surface for Electron so explore/codify w
       → action path proven on a real Electron window by the opt-in `ELECTRON_LIVE` test
       (`tests/live-electron.spec.ts`: snapshot→ref→fill on the real `_electron` page); the
       deterministic `tests/inproc-driver.spec.ts` proves snapshot/click/fill/press on chromium with
-      no binary/quota. A full model-driven explore run (`SURFACE=electron`) is the documented manual
-      step (needs the Copilot login + a display).
+      no binary/quota. A full model-driven explore run is the documented manual step (needs the
+      Copilot login + a display): `SURFACE=electron ELECTRON_ARGS=<app dir> npm run explore` — the
+      runners skip the `START_URL` goto for Electron so the app's own loaded content is driven.
 - [x] ADR note reconciling the CDP-vs-in-process action paths.
       → [ADR 0005](../adr/0005-in-process-action-adapter-electron.md).
 

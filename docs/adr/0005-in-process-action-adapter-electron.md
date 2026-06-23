@@ -49,7 +49,10 @@ shape and acts on the Playwright `Page` directly; select it for surfaces with no
 
 ## Consequences
 
-- Electron is now fully drivable by the explorer/codifier, not just gradeable.
+- Electron is now drivable by the explorer/codifier, not just gradeable. The runners skip the
+  `START_URL` navigation for `kind: 'electron'` (the app loads its own content via
+  `_electron.launch`/`loadFile`); point a run at an app with `SURFACE=electron ELECTRON_ARGS=<app dir>`,
+  not a URL.
 - Two action backends share one interface; future no-CDP surfaces reuse the in-process driver.
 - The in-process snapshot is a **flat list of actionable elements** (not the CLI's indented tree)
   and infers role/name with a focused in-page mapper rather than Chromium's full accessibility

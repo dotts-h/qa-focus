@@ -78,7 +78,9 @@ async function main(): Promise<void> {
   // written alongside the Markdown artifact and fed to the codifier (FLOW=…) to harden.
   const flow = newFlow({ goal: GOAL, startUrl: START_URL, surface: process.env.SURFACE || 'web' });
 
-  if (allow(START_URL)) { await page.goto(START_URL, { waitUntil: 'domcontentloaded' }); sink.steps.push(`goto ${START_URL}`); flow.steps.push({ action: 'goto', url: START_URL }); }
+  // Electron loads its own app (provider's _electron.launch → loadFile); navigating it to START_URL
+  // would replace that app with the web fixture. Only web/openfin start from a URL.
+  if (surface.kind !== 'electron' && allow(START_URL)) { await page.goto(START_URL, { waitUntil: 'domcontentloaded' }); sink.steps.push(`goto ${START_URL}`); flow.steps.push({ action: 'goto', url: START_URL }); }
 
   // Attach the action surface to the same page: the @playwright/cli over CDP for web/openfin,
   // or the in-process driver for Electron (no CDP endpoint). Both expose the same PwCli shape.

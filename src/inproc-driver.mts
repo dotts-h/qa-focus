@@ -43,7 +43,9 @@ async function snapshotPage(page: Page): Promise<SnapshotNode[]> {
         if (['button', 'submit', 'reset', 'image'].includes(t)) return 'button';
         if (t === 'checkbox') return 'checkbox';
         if (t === 'radio') return 'radio';
-        if (['', 'text', 'email', 'search', 'tel', 'url', 'password', 'number'].includes(t)) return 'textbox';
+        if (t === 'search') return 'searchbox'; // ARIA role Playwright actually assigns
+        if (t === 'number') return 'spinbutton'; // (NOT textbox — getByRole('textbox') won't match)
+        if (['', 'text', 'email', 'tel', 'url', 'password'].includes(t)) return 'textbox';
         return null;
       }
       if (tag === 'textarea') return 'textbox';
@@ -77,12 +79,18 @@ async function snapshotPage(page: Page): Promise<SnapshotNode[]> {
       const ti = el.getAttribute('title'); if (ti && ti.trim()) return ti.trim();
       return '';
     };
+    // Clear refs from any prior snapshot first, so a stale `data-qaf-ref` can never resolve to
+    // an element the CURRENT snapshot didn't advertise (the CLI re-derives refs every snapshot;
+    // we match that fresh-each-time semantics rather than leaving DOM residue).
+    for (const old of Array.from(document.querySelectorAll('[data-qaf-ref]'))) old.removeAttribute('data-qaf-ref');
     const out: SnapshotNode[] = [];
     let n = 0;
+    type Vis = { checkVisibility?: (o?: Record<string, boolean>) => boolean };
     for (const el of Array.from(document.querySelectorAll(SEL))) {
-      // Skip elements the user can't perceive/act on (collapsed, display:none, etc.).
-      const visible = typeof (el as { checkVisibility?: () => boolean }).checkVisibility === 'function'
-        ? (el as { checkVisibility: () => boolean }).checkVisibility()
+      // Skip elements the user can't perceive/act on. checkVisibility() defaults to display/
+      // content-visibility only — pass the options so opacity:0 and visibility:hidden count too.
+      const visible = typeof (el as Vis).checkVisibility === 'function'
+        ? (el as Vis).checkVisibility!({ contentVisibilityAuto: true, opacityProperty: true, visibilityProperty: true })
         : true;
       if (!visible) continue;
       const role = roleOf(el);
@@ -121,7 +129,9 @@ export async function attachInProcess(
           // list — accepted and ignored so the tool's call shape stays identical.
           const nodes = await snapshotPage(page);
           const text = nodes
-            .map((d) => `- ${d.role}${d.name ? ` "${d.name}"` : ''} [ref=${d.ref}]`)
+            // The flow parser (parseSnapshotRefs) extracts the name with /"([^"]*)"/, so a literal
+            // double-quote in the name would truncate it — collapse quotes to keep the line parseable.
+            .map((d) => `- ${d.role}${d.name ? ` "${d.name.replace(/"/g, "'")}"` : ''} [ref=${d.ref}]`)
             .join('\n');
           return ok(text || '(no actionable elements)');
         }

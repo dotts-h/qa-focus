@@ -115,3 +115,30 @@ test('detach is a safe no-op for the in-process driver', async () => {
   expect((await pwcli.detach()).ok).toBe(true);
   await page.close();
 });
+
+test('re-snapshot clears the ref of an element dropped from the new snapshot (no stale residue)', async () => {
+  const page = await fresh();
+  const { pwcli } = await attachInProcess({ page });
+  await pwcli.cmd('snapshot'); // tags the Add button
+  expect(await page.locator('button[type=submit][data-qaf-ref]').count()).toBe(1);
+  // Hide the button — it stays in the DOM but drops out of the next snapshot.
+  await page.evaluate(() => { (document.querySelector('button[type="submit"]') as HTMLElement).style.visibility = 'hidden'; });
+  await pwcli.cmd('snapshot');
+  // Its stale ref must be gone, not left attached to a now-unadvertised element.
+  expect(await page.locator('button[type=submit][data-qaf-ref]').count()).toBe(0);
+  await page.close();
+});
+
+test('input roles match the ARIA role Playwright assigns (number→spinbutton, search→searchbox)', async () => {
+  const page = await browser.newPage();
+  await page.setContent('<input type="number" aria-label="Qty"><input type="search" aria-label="Find"><input type="email" aria-label="Mail">');
+  const { pwcli } = await attachInProcess({ page });
+  const refs = parseSnapshotRefs((await pwcli.cmd('snapshot')).out);
+  const roles = [...refs.values()];
+  expect(roles.some((r) => r.role === 'spinbutton' && r.name === 'Qty')).toBe(true);
+  expect(roles.some((r) => r.role === 'searchbox' && r.name === 'Find')).toBe(true);
+  expect(roles.some((r) => r.role === 'textbox' && r.name === 'Mail')).toBe(true);
+  // and those advertised roles actually resolve on the live page (the gate would accept them)
+  await expect(page.getByRole('spinbutton', { name: 'Qty' })).toHaveCount(1);
+  await page.close();
+});

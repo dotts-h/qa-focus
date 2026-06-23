@@ -68,7 +68,8 @@ async function main(): Promise<void> {
   const findings: Finding[] = [];
   const facts: string[] = [];
 
-  if (allow(START_URL)) { await page.goto(START_URL, { waitUntil: 'domcontentloaded' }); sink.steps.push(`goto ${START_URL}`); }
+  // Electron loads its own app; only web/openfin start from START_URL (see bin/explore.mts).
+  if (surface.kind !== 'electron' && allow(START_URL)) { await page.goto(START_URL, { waitUntil: 'domcontentloaded' }); sink.steps.push(`goto ${START_URL}`); }
 
   const { pwcli: pw, getCtx } = cdpEndpoint
     ? await attachCli({ cdpEndpoint, page, session: 'qa-focus-repl' })
