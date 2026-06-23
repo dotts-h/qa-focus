@@ -23,6 +23,9 @@ export interface FlowStep {
   key?: string;
   frame?: string;
   submit?: boolean;
+  /** the action was REFUSED by the leash (e.g. an off-allowlist goto). Recorded as evidence — a
+   * blocked attempt the red-team (#0009) can assert on — but excluded from the codifier seed. */
+  denied?: boolean;
 }
 
 /** A captured flow — the explorer→codifier handoff artifact (artifacts/explore-flow.json). */
@@ -91,7 +94,8 @@ export function flowToSeed(flow: Flow): string {
     flow.startUrl ? `Start URL: ${flow.startUrl}.` : '',
     'Re-walk and HARDEN exactly these steps. Treat the targets below as descriptors to verify',
     'on the live page via propose_locator (do NOT trust them blindly — the gate is authoritative):',
-    ...flow.steps.map((s, i) => `${i + 1}. ${describeStep(s)}`),
+    // Denied steps (e.g. a blocked off-allowlist goto) are evidence, not flow — never seed them.
+    ...flow.steps.filter((s) => !s.denied).map((s, i) => `${i + 1}. ${describeStep(s)}`),
   ].filter(Boolean).join('\n');
 }
 
