@@ -20,7 +20,7 @@
 // defineTools — never raw shell.
 //
 // Output is DISCOVERY (findings a human verifies), not durable tests. Feed the
-// worthwhile flows to the codifier (bin/author.mjs) to harden into gated specs.
+// worthwhile flows to the codifier (bin/codify.mjs) to harden into gated specs.
 //
 // Env: COPILOT_CLI, COPILOT_MODEL, GOAL, START_URL, ALLOWLIST (csv), PW_CHANNEL, CDP_PORT.
 import { spawn } from 'node:child_process';
@@ -31,7 +31,7 @@ import { createGatedSession } from '../src/harness.mjs';
 import { openSurface } from '../src/provider.mjs';
 import { makeAllowlist, guardContext } from '../src/allowlist.mjs';
 import { newSink, attachCollectors, renderArtifact } from '../src/evidence.mjs';
-import { makePwCli } from '../src/pwcli.mjs';
+import { attachCli } from '../src/pwcli.mjs';
 import { makeBrowserTools } from '../src/browser-tools.mjs';
 import { resolveCopilotCli } from '../src/copilot-path.mjs';
 
@@ -73,11 +73,7 @@ async function main() {
   if (allow(START_URL)) { await page.goto(START_URL, { waitUntil: 'domcontentloaded' }); sink.steps.push(`goto ${START_URL}`); }
 
   // Attach the CLI to the same browser our in-process page already drives.
-  const pw = makePwCli({ session: 'qa-focus' });
-  const att = await pw.attach(cdpEndpoint);
-  if (!att.ok) throw new Error(`playwright-cli failed to attach over CDP: ${att.out}`);
-
-  const getCtx = async () => ({ page, pwcli: pw });
+  const { pwcli: pw, getCtx } = await attachCli({ cdpEndpoint, page, session: 'qa-focus' });
 
   // The control model (hard leash + step budget) lives in src/harness.mjs (ADR 0002). The
   // budget is the runaway-loop circuit-breaker: on exhaustion the model is denied further

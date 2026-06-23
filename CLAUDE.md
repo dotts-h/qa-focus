@@ -24,12 +24,13 @@ deterministic gate verifies every step. Uses the **installed `copilot` login** (
 
 ## Layout
 - `extension/qa-focus/` — the locator gate (`ladder.mjs`) + installable Copilot CLI extension
-- `bin/author.mjs` — hard-gated codifier; `bin/explore.mjs` — autonomous explorer
-- `src/{provider,allowlist,evidence}.mjs`; `fixtures/app/` sample app; `tests/` (deterministic, green)
+- `bin/explore.mjs` — autonomous explorer; `bin/codify.mjs` — autonomous codifier; `bin/interactive.mjs` — enforcing REPL
+- `src/harness.mjs` — the gated-session control model (one home for the hard leash, ADR 0002)
+- `src/{provider,allowlist,evidence,browser-tools,codify-tools}.mjs`; `fixtures/app/` sample app; `tests/` (deterministic, green)
 
 ## Run
 - `PW_CHANNEL=chromium npm test` — deterministic gate + allowlist proofs (no model, no quota)
-- `node bin/author.mjs` / `GOAL="…" node bin/explore.mjs` — live, uses the installed copilot login
+- `GOAL="…" node bin/explore.mjs` / `GOAL="…" SPEC_NAME="…" node bin/codify.mjs` — live, uses the installed copilot login
 
 ## Immediate next task — finish M3 interactive smoke (see PLAN)
 **Done since M1.5:** browser tools factored into `src/browser-tools.mjs` (one source of truth, lazy

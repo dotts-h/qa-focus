@@ -26,8 +26,8 @@ across all three runners:
 
 The HARD leash is defined **once** in `src/harness.mjs` (`createGatedSession`, ADR 0002) — the
 single home for the injection-defense control model — and is the only `src/` import site of the
-Copilot SDK session primitives. `bin/author.mjs` is the original proof harness, now superseded by
-`bin/codify.mjs` and kept only as a reference.
+Copilot SDK session primitives. (The original `bin/author.mjs` proof harness was removed once
+`bin/codify.mjs` superseded it.)
 
 The hard-leash matters: in a Copilot *extension* session the model retains shell/fs tools and was
 observed **routing around the gate** (writing ad-hoc scripts). The enforcing path (`interactive.mjs`)

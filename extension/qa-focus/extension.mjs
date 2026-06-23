@@ -26,7 +26,7 @@ import { dirname, join } from 'node:path';
 import { joinSession } from '@github/copilot-sdk/extension';
 import { openSurface } from '../../src/provider.mjs';
 import { makeAllowlist, guardContext } from '../../src/allowlist.mjs';
-import { makePwCli } from '../../src/pwcli.mjs';
+import { attachCli } from '../../src/pwcli.mjs';
 import { makeBrowserTools } from '../../src/browser-tools.mjs';
 import { makeCodifyTools } from '../../src/codify-tools.mjs';
 import { STANDARDS_PROMPT } from '../../src/standards.mjs';
@@ -55,10 +55,8 @@ async function getCtx() {
       forceOpenShadow: !!process.env.FORCE_OPEN_SHADOW,
     });
     await guardContext(surface.context, allow);
-    const pw = makePwCli({ session: 'qa-focus-ext' });
-    const att = await pw.attach(surface.cdpEndpoint);
-    if (!att.ok) throw new Error(`playwright-cli failed to attach over CDP: ${att.out}`);
-    driver = { surface, pw, page: surface.page };
+    const { pwcli } = await attachCli({ cdpEndpoint: surface.cdpEndpoint, page: surface.page, session: 'qa-focus-ext' });
+    driver = { surface, pw: pwcli, page: surface.page };
   }
   return { page: driver.page, pwcli: driver.pw };
 }

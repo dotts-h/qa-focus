@@ -20,7 +20,7 @@ import { createGatedSession } from '../src/harness.mjs';
 import { openSurface } from '../src/provider.mjs';
 import { makeAllowlist, guardContext } from '../src/allowlist.mjs';
 import { newSink, attachCollectors } from '../src/evidence.mjs';
-import { makePwCli } from '../src/pwcli.mjs';
+import { attachCli } from '../src/pwcli.mjs';
 import { makeBrowserTools } from '../src/browser-tools.mjs';
 import { makeCodifyTools } from '../src/codify-tools.mjs';
 import { resolveCopilotCli } from '../src/copilot-path.mjs';
@@ -59,10 +59,7 @@ async function main() {
 
   if (allow(START_URL)) { await page.goto(START_URL, { waitUntil: 'domcontentloaded' }); sink.steps.push(`goto ${START_URL}`); }
 
-  const pw = makePwCli({ session: 'qa-focus-codify' });
-  const att = await pw.attach(cdpEndpoint);
-  if (!att.ok) throw new Error(`playwright-cli failed to attach over CDP: ${att.out}`);
-  const getCtx = async () => ({ page, pwcli: pw });
+  const { pwcli: pw, getCtx } = await attachCli({ cdpEndpoint, page, session: 'qa-focus-codify' });
 
   // The control model (hard leash + step budget + recency) lives in src/harness.mjs (ADR 0002).
   const { session, client } = await createGatedSession({

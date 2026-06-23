@@ -34,3 +34,16 @@ export function makePwCli({ bin = DEFAULT_BIN, session = 'qa-focus', cwd = join(
     detach: () => run([`-s=${session}`, 'detach']),
   };
 }
+
+/**
+ * Attach a CLI driver to an already-open surface and return the per-call context the gated
+ * browser tools expect. Folds the makePwCli + attach + getCtx triplet every runner repeats;
+ * throws if the CLI cannot attach over CDP. The tools resolve `getCtx()` per call (the page
+ * is stable for the whole session, so a closure is enough).
+ */
+export async function attachCli({ cdpEndpoint, page, session = 'qa-focus' }) {
+  const pwcli = makePwCli({ session });
+  const att = await pwcli.attach(cdpEndpoint);
+  if (!att.ok) throw new Error(`playwright-cli failed to attach over CDP: ${att.out}`);
+  return { pwcli, getCtx: async () => ({ page, pwcli }) };
+}

@@ -9,7 +9,7 @@ the two distinct jobs: an **explorer** that discovers (findings a human verifies
 
 - **M0 — Foundation (DONE).**
   Deterministic locator gate (priority ladder + scoped tier + graceful degradation) proven on a
-  clean app and a real hostile app (the-internet). Codifier (`bin/author.mjs`) runs live on the
+  clean app and a real hostile app (the-internet). Codifier (`bin/codify.mjs`) runs live on the
   installed Copilot login. URL allowlist + tool-gating injection defense. Repo seeded, 13 tests green.
 
 - **M1 — Live explorer smoke (DONE).**

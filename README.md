@@ -5,8 +5,8 @@ Control-first **agentic QA** on the GitHub Copilot SDK + Playwright. Two modes t
 - **Explore** (`bin/explore.mjs`) — an autonomous browser agent roams an app toward a high-level
   goal, captures evidence (console/network anomalies + a Playwright trace), and reports findings a
   human verifies. *Discovery.*
-- **Author / codify** (`bin/author.mjs`) — a hard-gated harness turns a flow into a
-  standards-compliant, durable Playwright locator/test under a deterministic gate. *Permanence.*
+- **Codify** (`bin/codify.mjs`) — a hard-gated harness turns a discovered flow into a
+  standards-compliant, durable Playwright spec under a deterministic gate. *Permanence.*
 
 The thesis (proven before this repo existed): **agent reliability is a control problem, not a
 prompting one.** The program owns the loop; the model fills narrow typed holes; a deterministic
@@ -27,13 +27,15 @@ suspenders.
 ## Layout
 
 ```
-extension/qa-focus/    installable Copilot CLI extension (always-on codifier) — ladder.mjs + extension.mjs
-bin/author.mjs         hard-gated authoring harness (codifier)
-bin/explore.mjs        autonomous explorer (first cut)
+extension/qa-focus/    installable Copilot CLI extension (interactive codifier) — ladder.mjs + extension.mjs
+bin/explore.mjs        autonomous explorer (discovery)
+bin/codify.mjs         autonomous codifier (flow → durable spec)
+bin/interactive.mjs    enforcing interactive REPL (drive → explore → harden)
+src/harness.mjs        the gated-session control model — one home for the leash (ADR 0002)
 src/allowlist.mjs      URL allowlist guard
 src/evidence.mjs       console/network/trace → Markdown artifact
 fixtures/app/          self-contained sample app (used by tests)
-tests/                 deterministic gate + allowlist specs (13, green)
+tests/                 deterministic gate + allowlist specs (green)
 docs/ARCHITECTURE.md   explorer↔codifier, the Antigravity-pillar mapping, security model
 ```
 
@@ -43,8 +45,8 @@ docs/ARCHITECTURE.md   explorer↔codifier, the Antigravity-pillar mapping, secu
 npm i && npx playwright install chromium
 PW_CHANNEL=chromium npm test            # deterministic gate + allowlist proofs (no model)
 
-node bin/author.mjs                      # live codifier (uses your installed copilot login)
 GOAL="log in and add a task" node bin/explore.mjs   # live explorer → artifacts/explore-report.md
+GOAL="harden the add-to-cart flow" SPEC_NAME="add-to-cart" node bin/codify.mjs   # live codifier → tests/authored/
 ```
 
 ## Status
