@@ -5,6 +5,28 @@ offers), surface-agnostic (web, Electron, OpenFin — all Chromium under the hoo
 the two distinct jobs: an **explorer** that discovers (findings a human verifies) feeding a
 **codifier** that hardens flows into deterministic, standards-compliant Playwright tests.
 
+## v1 — definition of done
+
+qa-focus v1 is a **CLI / CI deliverable** — **no MCP, no IDE embedding** (ADR 0003), shipped as a
+typed package (ADR 0004). Two acceptance axes:
+
+**A. Surface coverage — the gate + explorer + codifier work, live-verified, on all three:**
+- **web (Chrome channel)** — `PW_CHANNEL=chrome` (branded Chrome, not just bundled Chromium), since
+  target apps run there.
+- **Electron** — done at the gate layer (`tests/live-electron.spec.ts`); v1 extends to the
+  explorer/codifier path (an in-process action surface, since the CLI can't attach over CDP).
+- **OpenFin** — `connectOverCDP` to the RVM started with `--remote-debugging-port` (set via the app
+  manifest's `runtime.arguments`); windows are Pages. **Needs Windows/macOS infra** (no Linux
+  runtime) + a free OpenFin developer license + a test `app.json`. Live-verify on the Mac mini or a
+  Proxmox Windows VM.
+
+**B. Deliverable — installable CLI tools (ADR 0003), all non-MCP:**
+- **Standalone CLI** published to npm — `qa-focus explore | codify | interactive`.
+- **Copilot CLI plugin** — `plugin.json` + git-marketplace install.
+- **GitHub Action** — run explore/codify/the authored gate in CI.
+
+Tracked as the **v1 epic** in `docs/issues/`.
+
 ## Milestones
 
 - **M0 — Foundation (DONE).**
