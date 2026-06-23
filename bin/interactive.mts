@@ -1,4 +1,4 @@
-// interactive.mjs — the ENFORCING interactive loop (drive → explore → harden).
+// interactive.mts — the ENFORCING interactive loop (drive → explore → harden).
 //
 // Same hard leash as the autonomous explorer: availableTools is caged to ONLY our
 // gated tools (browser_* + propose_locator/write_spec/run_spec), and onPreToolUse
@@ -24,6 +24,7 @@ import { createGatedSession } from '../src/harness.mjs';
 import { openSurface } from '../src/provider.mjs';
 import { makeAllowlist, guardContext } from '../src/allowlist.mjs';
 import { newSink, attachCollectors, renderArtifact } from '../src/evidence.mjs';
+import type { Finding } from '../src/evidence.mjs';
 import { attachCli } from '../src/pwcli.mjs';
 import { makeBrowserTools } from '../src/browser-tools.mjs';
 import { makeCodifyTools } from '../src/codify-tools.mjs';
@@ -36,9 +37,9 @@ const CLI = resolveCopilotCli();
 const START_URL = process.env.START_URL || 'http://localhost:3000';
 const ALLOWLIST = (process.env.ALLOWLIST || 'localhost').split(',');
 const CDP_PORT = Number(process.env.CDP_PORT || 9222);
-const log = (...a) => console.log('[qa]', ...a);
+const log = (...a: unknown[]): void => console.log('[qa]', ...a);
 
-async function main() {
+async function main(): Promise<void> {
   const allow = makeAllowlist(ALLOWLIST);
   let server;
   if (START_URL.startsWith('http://localhost:3000')) {
@@ -62,14 +63,14 @@ async function main() {
   await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
   const sink = newSink();
   attachCollectors(page, sink, allow);
-  const findings = [];
-  const facts = [];
+  const findings: Finding[] = [];
+  const facts: string[] = [];
 
   if (allow(START_URL)) { await page.goto(START_URL, { waitUntil: 'domcontentloaded' }); sink.steps.push(`goto ${START_URL}`); }
 
   const { pwcli: pw, getCtx } = await attachCli({ cdpEndpoint, page, session: 'qa-focus-repl' });
 
-  // The control model (hard leash + recency) lives in src/harness.mjs (ADR 0002). No step
+  // The control model (hard leash + recency) lives in src/harness.mts (ADR 0002). No step
   // budget here — turns are human-paced over stdin, so the human is the circuit-breaker.
   const { session, client } = await createGatedSession({
     cli: CLI,
@@ -84,7 +85,7 @@ async function main() {
     },
   });
 
-  const saveArtifact = async () => {
+  const saveArtifact = async (): Promise<void> => {
     mkdirSync(join(ROOT, 'artifacts'), { recursive: true });
     const tracePath = join(ROOT, 'artifacts/interactive-trace.zip');
     await context.tracing.stop({ path: tracePath }).catch(() => {});
@@ -101,13 +102,14 @@ async function main() {
     try {
       const before = findings.length;
       const res = await session.sendAndWait({ prompt: goal }, 240_000);
-      const text = typeof res === 'string' ? res : res?.text ?? res?.content ?? '';
+      const r: any = res;
+      const text = typeof r === 'string' ? r : r?.text ?? r?.content ?? r?.data?.content ?? '';
       if (text) console.log(`\n${text}\n`);
       if (findings.length > before) {
         log(`findings (+${findings.length - before}):`);
         for (const f of findings.slice(before)) console.log(`  - [${f.severity || '?'}] ${f.title}`);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('[qa] turn failed:', e?.message || e);
     }
     rl.prompt();

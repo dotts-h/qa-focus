@@ -5,10 +5,10 @@
 
 Control-first **agentic QA** on the GitHub Copilot SDK + Playwright. Two modes that chain:
 
-- **Explore** (`bin/explore.mjs`) — an autonomous browser agent roams an app toward a high-level
+- **Explore** (`bin/explore.mts`) — an autonomous browser agent roams an app toward a high-level
   goal, captures evidence (console/network anomalies + a Playwright trace), and reports findings a
   human verifies. *Discovery.*
-- **Codify** (`bin/codify.mjs`) — a hard-gated harness turns a discovered flow into a
+- **Codify** (`bin/codify.mts`) — a hard-gated harness turns a discovered flow into a
   standards-compliant, durable Playwright spec under a deterministic gate. *Permanence.*
 
 The thesis (proven before this repo existed): **agent reliability is a control problem, not a
@@ -24,19 +24,23 @@ run anywhere you're signed in, against any model your Copilot offers.
 The explorer's defense against prompt injection (a malicious page telling the agent to read `.env`
 and exfiltrate it) is **structural**: `availableTools` exposes only browser-action tools, so the
 agent holds *no* filesystem/shell/network capability — the dangerous action has no tool to run.
-A URL allowlist (`src/allowlist.mjs`) is the second layer. Capability-gating + allowlist = belt and
+A URL allowlist (`src/allowlist.mts`) is the second layer. Capability-gating + allowlist = belt and
 suspenders.
 
 ## Layout
 
+The core is **TypeScript** (`.mts`, strict; ADR 0004): `npm run build` emits ESM JS + `.d.mts`
+types to `dist/`, dev runs straight from source via `tsx`.
+
 ```
-extension/qa-focus/    installable Copilot CLI extension (interactive codifier) — ladder.mjs + extension.mjs
-bin/explore.mjs        autonomous explorer (discovery)
-bin/codify.mjs         autonomous codifier (flow → durable spec)
-bin/interactive.mjs    enforcing interactive REPL (drive → explore → harden)
-src/harness.mjs        the gated-session control model — one home for the leash (ADR 0002)
-src/allowlist.mjs      URL allowlist guard
-src/evidence.mjs       console/network/trace → Markdown artifact
+extension/qa-focus/    installable Copilot CLI extension (interactive codifier) — ladder.mts + extension.mts
+bin/explore.mts        autonomous explorer (discovery)
+bin/codify.mts         autonomous codifier (flow → durable spec)
+bin/interactive.mts    enforcing interactive REPL (drive → explore → harden)
+src/index.mts          public package entry — the portable core, exported with types
+src/harness.mts        the gated-session control model — one home for the leash (ADR 0002)
+src/allowlist.mts      URL allowlist guard
+src/evidence.mts       console/network/trace → Markdown artifact
 fixtures/app/          self-contained sample app (used by tests)
 tests/                 deterministic gate + allowlist specs (green)
 docs/ARCHITECTURE.md   explorer↔codifier, the Antigravity-pillar mapping, security model
@@ -47,9 +51,10 @@ docs/ARCHITECTURE.md   explorer↔codifier, the Antigravity-pillar mapping, secu
 ```bash
 npm i && npx playwright install chromium
 PW_CHANNEL=chromium npm test            # deterministic gate + allowlist proofs (no model)
+npm run typecheck                       # strict tsc --noEmit; `npm run build` → dist/ (JS + .d.mts)
 
-GOAL="log in and add a task" node bin/explore.mjs   # live explorer → artifacts/explore-report.md
-GOAL="harden the add-to-cart flow" SPEC_NAME="add-to-cart" node bin/codify.mjs   # live codifier → tests/authored/
+GOAL="log in and add a task" npm run explore   # live explorer → artifacts/explore-report.md
+GOAL="harden the add-to-cart flow" SPEC_NAME="add-to-cart" npm run codify   # live codifier → tests/authored/
 ```
 
 ## Status
@@ -59,7 +64,7 @@ GOAL="harden the add-to-cart flow" SPEC_NAME="add-to-cart" node bin/codify.mjs  
   allowlist; the autonomous **explorer** (live, against automationexercise.com / the-internet); the
   autonomous **codifier** end-to-end (discovered flow → durable, gate-clean, passing Playwright spec).
 - **Also in:** deterministic axe-core a11y pass, `storageState` auth reuse, consent-banner handling,
-  and the gated-session control model in one seam (`src/harness.mjs`, ADR 0002).
+  and the gated-session control model in one seam (`src/harness.mts`, ADR 0002).
 
 See `docs/ARCHITECTURE.md`.
 

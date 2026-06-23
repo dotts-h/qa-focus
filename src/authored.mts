@@ -12,6 +12,9 @@ import { existsSync } from 'node:fs';
  * suite / a fresh checkout have no capture — so we must fall back to an unauthenticated
  * context (return undefined) rather than crash. `exists` is injectable for tests.
  */
-export function resolveStorageState(authPath, exists = existsSync) {
+export function resolveStorageState(
+  authPath: string | undefined,
+  exists: (p: string) => boolean = existsSync,
+): string | undefined {
   return authPath && exists(authPath) ? authPath : undefined;
 }

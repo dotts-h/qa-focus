@@ -15,10 +15,40 @@
 //                                                          poll until it's up, then
 //                                                          windows appear as pages.
 import { chromium, _electron } from 'playwright';
+import type { Browser, BrowserContext, ElectronApplication, Page } from 'playwright';
 import { existsSync } from 'node:fs';
 
+/** The supported browser surfaces. */
+export type SurfaceKind = 'web' | 'electron' | 'openfin';
+
+/** An opened surface: a live Page + context plus surface-specific lifecycle handles. */
+export interface Surface {
+  kind: string;
+  context: BrowserContext;
+  page: Page;
+  cdpEndpoint?: string;
+  loadedState?: boolean;
+  saveState?: (path: string) => Promise<unknown>;
+  electronApp?: ElectronApplication;
+  browser?: Browser;
+  close: () => Promise<void>;
+}
+
+/** Options for `openSurface` — a superset across all surface kinds. */
+export interface OpenSurfaceOptions {
+  kind?: string;
+  electronArgs?: string[];
+  cdpUrl?: string;
+  channel?: string;
+  cdpPort?: number;
+  headless?: boolean;
+  slowMo?: number;
+  forceOpenShadow?: boolean;
+  storageState?: string;
+}
+
 /** Poll a CDP http endpoint until /json/version answers (the browser is ready to attach). */
-async function waitForCdp(endpoint, timeoutMs = 5000) {
+async function waitForCdp(endpoint: string, timeoutMs = 5000): Promise<string> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
     try {
@@ -37,14 +67,16 @@ async function waitForCdp(endpoint, timeoutMs = 5000) {
  * content reachable to the gate and the tools. Off by default (it changes app
  * behavior); enable only when you must test inside closed components.
  */
-function forceOpenShadowInit() {
+function forceOpenShadowInit(): void {
   const orig = Element.prototype.attachShadow;
-  Element.prototype.attachShadow = function (init) {
+  Element.prototype.attachShadow = function (init: ShadowRootInit) {
     return orig.call(this, { ...init, mode: 'open' });
   };
 }
 
-export async function openSurface({ kind = 'web', electronArgs = [], cdpUrl, channel, cdpPort, headless = true, slowMo, forceOpenShadow = false, storageState } = {}) {
+export async function openSurface(
+  { kind = 'web', electronArgs = [], cdpUrl, channel, cdpPort, headless = true, slowMo, forceOpenShadow = false, storageState }: OpenSurfaceOptions = {},
+): Promise<Surface> {
   if (kind === 'web') {
     // Expose a CDP http endpoint so the @playwright/cli (the model's action surface)
     // can attach to the very same browser our in-process gate/evidence/allowlist watch.
@@ -61,7 +93,7 @@ export async function openSurface({ kind = 'web', electronArgs = [], cdpUrl, cha
     return {
       kind, context, page, cdpEndpoint,
       loadedState: !!useState,
-      saveState: (path) => context.storageState({ path }),
+      saveState: (path: string) => context.storageState({ path }),
       close: () => browser.close(),
     };
   }

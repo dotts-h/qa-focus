@@ -2,29 +2,32 @@
 // green-washing." When an authored locator stops resolving (role renamed, element
 // re-tagged), a naive healer that rewrites the test to pass hides a real regression.
 // Instead, healLocator proposes a REPLACEMENT only when the deterministic gate
-// (ladder.mjs) cleanly accepts a UNIQUE candidate, returns it flagged
+// (ladder.mts) cleanly accepts a UNIQUE candidate, returns it flagged
 // needsConfirmation, and REFUSES (healed:false) when recovery is ambiguous — it never
 // guesses into the wrong element, and the human/codifier confirms before adopting it.
+import type { Page } from 'playwright';
 import { gradeLocator, render } from '../extension/qa-focus/ladder.mjs';
+import type { Proposal } from '../extension/qa-focus/ladder.mjs';
 
 // Common interactive roles to try when the accessible NAME looks stable but the role
 // drifted (e.g. a <button> became an <a>). Bounded + each is gate-graded to exactly 1.
 const COMMON_ROLES = ['button', 'link', 'heading', 'textbox', 'checkbox', 'tab', 'menuitem', 'combobox'];
 
+/** The healer's verdict: a gate-verified replacement (needs confirmation) or a refusal. */
+export type HealResult =
+  | { healed: false; reason: string; was?: string; current?: string }
+  | { healed: true; needsConfirmation: true; was: string; proposal: Proposal; locator: string; tier: string };
+
 /**
  * Attempt a gate-verified recovery for a broken proposal on the CURRENT page.
- * @returns {Promise<
- *   | { healed: false, reason: string, was?: string, current?: string }
- *   | { healed: true, needsConfirmation: true, was: string, proposal: object, locator: string, tier: string }
- * >}
  */
-export async function healLocator(page, broken) {
+export async function healLocator(page: Page, broken: Proposal): Promise<HealResult> {
   // Still resolves cleanly? Then the test failed for another reason — nothing to heal,
   // and silently "fixing" a working locator would be exactly the green-washing we forbid.
   const asis = await gradeLocator(page, { ...broken });
   if (asis.ok) return { healed: false, reason: 'locator still resolves — nothing to heal (the failure is elsewhere)', current: render(broken) };
 
-  const candidates = [];
+  const candidates: Proposal[] = [];
   // 1. Name looks stable, role drifted → try the same name under other common roles (most durable).
   if (broken.name) for (const role of COMMON_ROLES) if (role !== broken.role) candidates.push({ tier: 'role', role, name: broken.name });
   // 2. Name drifted but the element is the only one of its role → role-only (when unique).

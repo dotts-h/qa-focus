@@ -8,21 +8,24 @@
 
 ## Internal seams
 
-> Promises between modules inside this repo.
+> Promises between modules inside this repo. Since [ADR 0004](adr/0004-typescript-core-and-npm-package.md)
+> the core is TypeScript: each seam below ships as an **exported type** (e.g. `Proposal`, `GradeResult`,
+> `Flow`/`FlowStep`, `HealResult`, `ToolDescriptor`), re-exported from `src/index.mts` and emitted as
+> `.d.mts` to `dist/` — so the shapes are now compile-checked, not just prose.
 
 | seam | shape (one line) | stability | owner / source |
 |------|------------------|-----------|----------------|
-| Locator ladder | priority order `role > label > placeholder > text > altText > title > testid > scoped > css/xpath` | **stable** — the gate's core | `extension/qa-focus/ladder.mjs` (`TIERS`) |
-| `gradeLocator(page, proposal)` | → `{ ok, tier, degraded, frameDegraded, debt, suggestedTier? }`; accepts only a locator resolving to exactly 1 element that no higher tier resolves | **stable** | `extension/qa-focus/ladder.mjs` |
-| Gated tool descriptor | `{ name, def: { description, parameters (JSON Schema), handler } }` — the model's only way to act | **stable** | `src/browser-tools.mjs`, `src/codify-tools.mjs` |
-| `createGatedSession({cli,model,tools,stepBudget,recency})` | → `{ session, client, toolNames }`; the hard leash (cage + deny + budget) | **stable** — the injection defense | `src/harness.mjs` · [ADR 0002](adr/0002-extract-gated-session-harness.md) |
-| `openSurface({kind,channel,…,storageState})` | → `{ kind, context, page, cdpEndpoint, saveState, close }` across web/electron/openfin | **stable** | `src/provider.mjs` · [ADR 0001](adr/0001-no-mcp-use-playwright-cli.md) |
-| `makeAllowlist(patterns)` / `guardContext(ctx, allow)` | URL predicate + network-layer navigation guard | **stable** | `src/allowlist.mjs` |
-| `lintSpec(source)` | → `{ ok, violations: [{ rule, line, snippet, why }] }` (Playwright standards) | **stable** | `src/standards.mjs` |
-| Authored auth reuse | `resolveStorageState(path, exists?)` → reuse capture iff it exists, else `undefined`; authored specs import `tests/authored/fixtures.ts` (`test`/`expect`) for storageState reuse + unauth fallback | **stable** | `src/authored.mjs`, `tests/authored/fixtures.ts` |
-| Locator healer (M5) | `healLocator(page, broken)` → `{ healed:true, needsConfirmation, proposal, locator, tier }` (gate-verified replacement) or `{ healed:false, reason }`. NEVER silently rewrites a passing test; refuses ambiguous recovery. Wired as the `heal_locator` codify tool. | **stable** | `src/healer.mjs` |
-| Evidence artifact | `sink { steps, console, network, shots, thirdPartyBlocked }` + `finding { severity, title, detail, source }` → Markdown | **stable** | `src/evidence.mjs` |
-| Flow artifact (explorer→codifier) | `{ goal, startUrl, surface, steps[] }`; `step = { action: goto\|click\|fill\|press\|expect, role?, name?, text?, url?, key?, frame?, submit? }` — DURABLE accessible steps (not refs). Explorer writes `artifacts/explore-flow.json`; codifier reads it via `FLOW=…` as a seed. A seed to re-walk + gate-harden, **never** trusted output. | **stable** | `src/flow.mjs` (`newFlow`/`parseSnapshotRefs`/`recordStep`/`flowToSeed`/`isFlow`) |
+| Locator ladder | priority order `role > label > placeholder > text > altText > title > testid > scoped > css/xpath` | **stable** — the gate's core | `extension/qa-focus/ladder.mts` (`TIERS`) |
+| `gradeLocator(page, proposal)` | → `{ ok, tier, degraded, frameDegraded, debt, suggestedTier? }`; accepts only a locator resolving to exactly 1 element that no higher tier resolves | **stable** | `extension/qa-focus/ladder.mts` |
+| Gated tool descriptor | `{ name, def: { description, parameters (JSON Schema), handler } }` — the model's only way to act | **stable** | `src/browser-tools.mts`, `src/codify-tools.mts` |
+| `createGatedSession({cli,model,tools,stepBudget,recency})` | → `{ session, client, toolNames }`; the hard leash (cage + deny + budget) | **stable** — the injection defense | `src/harness.mts` · [ADR 0002](adr/0002-extract-gated-session-harness.md) |
+| `openSurface({kind,channel,…,storageState})` | → `{ kind, context, page, cdpEndpoint, saveState, close }` across web/electron/openfin | **stable** | `src/provider.mts` · [ADR 0001](adr/0001-no-mcp-use-playwright-cli.md) |
+| `makeAllowlist(patterns)` / `guardContext(ctx, allow)` | URL predicate + network-layer navigation guard | **stable** | `src/allowlist.mts` |
+| `lintSpec(source)` | → `{ ok, violations: [{ rule, line, snippet, why }] }` (Playwright standards) | **stable** | `src/standards.mts` |
+| Authored auth reuse | `resolveStorageState(path, exists?)` → reuse capture iff it exists, else `undefined`; authored specs import `tests/authored/fixtures.ts` (`test`/`expect`) for storageState reuse + unauth fallback | **stable** | `src/authored.mts`, `tests/authored/fixtures.ts` |
+| Locator healer (M5) | `healLocator(page, broken)` → `{ healed:true, needsConfirmation, proposal, locator, tier }` (gate-verified replacement) or `{ healed:false, reason }`. NEVER silently rewrites a passing test; refuses ambiguous recovery. Wired as the `heal_locator` codify tool. | **stable** | `src/healer.mts` |
+| Evidence artifact | `sink { steps, console, network, shots, thirdPartyBlocked }` + `finding { severity, title, detail, source }` → Markdown | **stable** | `src/evidence.mts` |
+| Flow artifact (explorer→codifier) | `{ goal, startUrl, surface, steps[] }`; `step = { action: goto\|click\|fill\|press\|expect, role?, name?, text?, url?, key?, frame?, submit? }` — DURABLE accessible steps (not refs). Explorer writes `artifacts/explore-flow.json`; codifier reads it via `FLOW=…` as a seed. A seed to re-walk + gate-harden, **never** trusted output. | **stable** | `src/flow.mts` (`newFlow`/`parseSnapshotRefs`/`recordStep`/`flowToSeed`/`isFlow`) |
 
 ## Provides (consumed by other repos)
 
@@ -47,11 +50,11 @@
 - **Injection defense (the leash).** In the standalone harnesses the model holds *no*
   fs/shell/network tool — its entire capability surface is the gated browser/codify tools. A
   hostile page cannot make it exfiltrate, because the capability is absent, not just restricted. ·
-  [ADR 0001](adr/0001-no-mcp-use-playwright-cli.md), `src/harness.mjs`.
+  [ADR 0001](adr/0001-no-mcp-use-playwright-cli.md), `src/harness.mts`.
 - **No raw shell to the model.** Browser actions go through gated `defineTool`s wrapping
   `@playwright/cli` with argv-discrete `execFile` (no shell) — a page's text can only ever be a
-  value, never a command. · [ADR 0001](adr/0001-no-mcp-use-playwright-cli.md), `src/pwcli.mjs`.
+  value, never a command. · [ADR 0001](adr/0001-no-mcp-use-playwright-cli.md), `src/pwcli.mts`.
 - **Offline deterministic suite.** `npm test` never hits the network or the model: LIVE specs skip
   without `LIVE=1`; authored specs are excluded without `RUN_AUTHORED=1`. · `playwright.config.ts`.
 - **Findings are never self-certified.** The explorer reports findings for human verification;
-  `source: 'axe'` findings are tool-verified. · `src/evidence.mjs`.
+  `source: 'axe'` findings are tool-verified. · `src/evidence.mts`.

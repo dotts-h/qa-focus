@@ -2,7 +2,7 @@
 // non-negotiable rules, enforced as code (not just prompt text). Encodes the
 // research-backed checklist for stable tests on complex (Angular/iframe/shadow) apps:
 // web-first assertions, no hard waits, no networkidle, no raw element handles, and
-// no XPath (it does NOT pierce shadow DOM). The locator-priority gate (ladder.mjs)
+// no XPath (it does NOT pierce shadow DOM). The locator-priority gate (ladder.mts)
 // covers locator quality; this covers the surrounding test code.
 //
 // lintSpec(source) → { ok, violations: [{ rule, line, snippet, why }] }.
@@ -25,7 +25,14 @@ export const STANDARDS_PROMPT =
   "from './fixtures' in the spec so the captured storageState is reused — never script the login inside every test.\n" +
   '• FLOW: drive with browser_* (act on refs from browser_snapshot); harden with propose_locator → (write_pom?) → write_spec → run_spec.';
 
-const RULES = [
+interface Rule {
+  rule: string;
+  re: RegExp;
+  why: string;
+  warn?: boolean;
+}
+
+const RULES: Rule[] = [
   {
     rule: 'no-hard-sleep',
     re: /\bwaitForTimeout\s*\(/,
@@ -54,10 +61,25 @@ const RULES = [
   },
 ];
 
+/** A single standards violation found in authored spec source. */
+export interface Violation {
+  rule: string;
+  line: number;
+  snippet: string;
+  why: string;
+  warn: boolean;
+}
+
+/** The linter verdict: `ok` is false when any non-advisory rule fired. */
+export interface LintResult {
+  ok: boolean;
+  violations: Violation[];
+}
+
 /** Lint authored Playwright spec source. Hard violations fail; `warn` rules are advisory. */
-export function lintSpec(source = '') {
+export function lintSpec(source: string = ''): LintResult {
   const lines = source.split('\n');
-  const violations = [];
+  const violations: Violation[] = [];
   lines.forEach((text, i) => {
     // Blank out comment-ONLY lines so guidance comments don't trip the rules. We do NOT
     // strip trailing `//` comments, because that would also erase `//` inside an XPath
@@ -73,7 +95,7 @@ export function lintSpec(source = '') {
 }
 
 /** Render violations as a compact message for the model. */
-export function renderViolations(violations) {
+export function renderViolations(violations: Violation[]): string {
   return violations
     .map((v) => `${v.warn ? 'WARN' : 'BLOCK'} [${v.rule}] line ${v.line}: ${v.snippet}\n   → ${v.why}`)
     .join('\n');
