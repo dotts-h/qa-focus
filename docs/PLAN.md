@@ -67,8 +67,12 @@ the two distinct jobs: an **explorer** that discovers (findings a human verifies
   the discovered recipe to the model's prompt. Control-first: the flow is a SEED to re-walk and
   gate-harden, never trusted output (the gate still grades every locator live). New `src/flow.mjs`,
   wired through the shared `browser-tools.mjs`; deterministic `tests/flow.spec.ts` (5) + a no-model
-  end-to-end smoke verified the full pwcli→gate→flow path. **Remaining:** one live model-driven
-  `explore | codify` chain on the fixture to confirm the seeded codifier authors a green spec.
+  end-to-end smoke verified the full pwcli→gate→flow path. **LIVE-VERIFIED:** a real Copilot-model
+  explorer drove the fixture autonomously and emitted the durable flow; that flow then produced a
+  green authored spec through the real gate (`write_spec` lint + `run_spec` playwright — see
+  `tests/authored/todo-add-live.spec.ts`). **Remaining:** the Copilot *model* authoring the spec
+  end-to-end was blocked mid-run by the account's monthly quota (HTTP 402) — re-run `FLOW=… node
+  bin/codify.mjs` once quota resets to confirm the model (not a stand-in) walks the seeded loop.
 
 - **M5 — Full authoring pipeline. SELF-HEALING STARTED.**
   PLAN → LOCATE → ASSERT → VERIFY around the gate; healer on failure. A conservative,
