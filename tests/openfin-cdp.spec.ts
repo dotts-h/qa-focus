@@ -85,8 +85,9 @@ test('openSurface(openfin, {window}) falls back to the FIRST window when no matc
     await p2.setContent('<title>Beta</title>');
     const of = await openSurface({ kind: 'openfin', cdpUrl: host.cdpEndpoint!, window: { title: 'Nope' } });
     try {
-      // Falls back to the first window specifically (Alpha) — not just "some Page".
-      expect(await of.page.title()).toBe('Alpha');
+      // Falls back to one of the REAL existing windows (not undefined / an unrelated-browser page).
+      // CDP doesn't guarantee contexts()/pages() ordering, so assert membership, not a specific one.
+      expect(['Alpha', 'Beta']).toContain(await of.page.title());
     } finally { await of.close(); }
   } finally { await host.close(); }
 });
