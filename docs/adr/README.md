@@ -16,3 +16,4 @@ accepted ADR's decision — supersede it (`Status: superseded-by-NNNN`).
 | [0006](0006-no-npm-publish-distribute-from-github.md) | No npm registry publish; distribute from the GitHub repo | accepted |
 | [0007](0007-vscode-surface-chat-participant.md) | VS Code surface: an `@qa-focus` chat participant, not a tool or MCP | accepted |
 | [0008](0008-streamable-repl-on-readline-not-ink.md) | The streamable REPL is built on Node `readline`, not Ink | accepted |
+| [0009](0009-purpose-built-dom-snapshot-store-for-healing.md) | A purpose-built DOM snapshot store feeds the trace-driven healer, not the trace zip | accepted |

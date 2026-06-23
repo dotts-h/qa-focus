@@ -37,6 +37,7 @@ import { attachInProcess } from '../src/inproc-driver.mjs';
 import { makeBrowserTools } from '../src/browser-tools.mjs';
 import { resolveCopilotCli } from '../src/copilot-path.mjs';
 import { newFlow } from '../src/flow.mjs';
+import { createSnapshotStore } from '../src/snapshot-store.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CLI = resolveCopilotCli();
@@ -96,13 +97,17 @@ async function main(): Promise<void> {
     ? await attachCli({ cdpEndpoint, page, session: 'qa-focus' })
     : await attachInProcess({ page, session: 'qa-focus' });
 
+  // Pre-action DOM snapshots (#0020, ADR 0009): each mutating action captures the page's DOM here
+  // first, so a later failed locator can be healed from the state where it still resolved.
+  const snapshots = createSnapshotStore(join(process.cwd(), 'artifacts', 'snapshots'));
+
   // The control model (hard leash + step budget) lives in src/harness.mts (ADR 0002). The
   // budget is the runaway-loop circuit-breaker: on exhaustion the model is denied further
   // tools and told to stop and summarize (it still writes its findings artifact).
   const { session, client, detachStream, getUsage } = await createGatedSession({
     cli: CLI,
     model: process.env.COPILOT_MODEL,
-    tools: makeBrowserTools({ getCtx, allow, allowlist: ALLOWLIST, sink, findings, flow, saveState: surface.saveState, statePath: process.env.STORAGE_STATE }),
+    tools: makeBrowserTools({ getCtx, allow, allowlist: ALLOWLIST, sink, findings, flow, snapshots, saveState: surface.saveState, statePath: process.env.STORAGE_STATE }),
     stepBudget: Number(process.env.STEP_BUDGET || 60),
     quiet: QUIET, // stream the model's reasoning/output/tool calls live unless silenced (#0013)
   });
