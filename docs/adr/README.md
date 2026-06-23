@@ -14,3 +14,5 @@ accepted ADR's decision — supersede it (`Status: superseded-by-NNNN`).
 | [0004](0004-typescript-core-and-npm-package.md) | Migrate the core to TypeScript and publish a typed npm package | accepted (publish clause superseded-by-0006) |
 | [0005](0005-in-process-action-adapter-electron.md) | In-process action adapter for Electron (the CDP CLI can't attach) | accepted |
 | [0006](0006-no-npm-publish-distribute-from-github.md) | No npm registry publish; distribute from the GitHub repo | accepted |
+| [0007](0007-vscode-surface-chat-participant.md) | VS Code surface: an `@qa-focus` chat participant, not a tool or MCP | accepted |
+| [0008](0008-streamable-repl-on-readline-not-ink.md) | The streamable REPL is built on Node `readline`, not Ink | accepted |
