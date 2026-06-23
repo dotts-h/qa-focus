@@ -1,0 +1,11 @@
+{
+  "name": "qa-focus",
+  "description": "Control-first agentic QA for GitHub Copilot CLI — explore an app, codify durable Playwright tests, and grade every locator through a deterministic gate. No MCP.",
+  "version": "0.1.0",
+  "author": { "name": "dotts-h", "url": "https://github.com/dotts-h" },
+  "homepage": "https://github.com/dotts-h/qa-focus",
+  "repository": "https://github.com/dotts-h/qa-focus",
+  "license": "Apache-2.0",
+  "keywords": ["qa", "testing", "playwright", "agentic", "e2e", "locators"],
+  "skills": ["skills/"]
+}

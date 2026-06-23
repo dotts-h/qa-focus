@@ -1,0 +1,19 @@
+{
+  "name": "qa-focus",
+  "owner": { "name": "dotts-h", "url": "https://github.com/dotts-h" },
+  "metadata": {
+    "description": "qa-focus — control-first agentic QA plugin for GitHub Copilot CLI (explore, codify, gate). No MCP.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "qa-focus",
+      "description": "Explore an app, codify durable Playwright tests, and grade every locator through a deterministic gate. No MCP.",
+      "version": "0.1.0",
+      "source": "./plugins/qa-focus",
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/dotts-h/qa-focus",
+      "keywords": ["qa", "testing", "playwright", "agentic"]
+    }
+  ]
+}
