@@ -34,6 +34,7 @@ import { newSink, attachCollectors, renderArtifact } from '../src/evidence.mjs';
 import { attachCli } from '../src/pwcli.mjs';
 import { makeBrowserTools } from '../src/browser-tools.mjs';
 import { resolveCopilotCli } from '../src/copilot-path.mjs';
+import { newFlow } from '../src/flow.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CLI = resolveCopilotCli();
@@ -69,8 +70,11 @@ async function main() {
   const sink = newSink();
   attachCollectors(page, sink, allow);
   const findings = [];
+  // The structured, durable record of the discovered flow (semantic steps, not refs) —
+  // written alongside the Markdown artifact and fed to the codifier (FLOW=…) to harden.
+  const flow = newFlow({ goal: GOAL, startUrl: START_URL, surface: process.env.SURFACE || 'web' });
 
-  if (allow(START_URL)) { await page.goto(START_URL, { waitUntil: 'domcontentloaded' }); sink.steps.push(`goto ${START_URL}`); }
+  if (allow(START_URL)) { await page.goto(START_URL, { waitUntil: 'domcontentloaded' }); sink.steps.push(`goto ${START_URL}`); flow.steps.push({ action: 'goto', url: START_URL }); }
 
   // Attach the CLI to the same browser our in-process page already drives.
   const { pwcli: pw, getCtx } = await attachCli({ cdpEndpoint, page, session: 'qa-focus' });
@@ -81,7 +85,7 @@ async function main() {
   const { session, client } = await createGatedSession({
     cli: CLI,
     model: process.env.COPILOT_MODEL,
-    tools: makeBrowserTools({ getCtx, allow, allowlist: ALLOWLIST, sink, findings, saveState: surface.saveState, statePath: process.env.STORAGE_STATE }),
+    tools: makeBrowserTools({ getCtx, allow, allowlist: ALLOWLIST, sink, findings, flow, saveState: surface.saveState, statePath: process.env.STORAGE_STATE }),
     stepBudget: Number(process.env.STEP_BUDGET || 60),
   });
 
@@ -108,7 +112,10 @@ async function main() {
   const md = renderArtifact({ goal: GOAL, sink, findings, tracePath });
   const out = join(HERE, '../artifacts/explore-report.md');
   writeFileSync(out, md);
-  log('artifact:', out);
+  // The machine-readable flow — the codifier's input for the M4 handoff.
+  const flowOut = join(HERE, '../artifacts/explore-flow.json');
+  writeFileSync(flowOut, JSON.stringify(flow, null, 2));
+  log('artifact:', out, '| flow:', flowOut, `(${flow.steps.length} steps)`);
   console.log('\n' + md);
 
   await pw.detach().catch(() => {});

@@ -69,6 +69,10 @@ jobs:
       - name: gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
+          # gitleaks-action@v2 REQUIRES GITHUB_TOKEN to scan a pull_request (it reads
+          # the PR's commit range via the API); without it the job hard-errors. The
+          # automatically-provided token with contents:read is sufficient for a single repo.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # The config lives at .gitleaks.toml (rendered by this recipe); its
           # allowlist exempts test fixtures. GITLEAKS_LICENSE is only needed for
           # gitleaks-action's org features — single-repo scanning runs without it.

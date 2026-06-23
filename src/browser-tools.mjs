@@ -16,10 +16,15 @@
 // the harness just returns its already-open page/pwcli).
 import { expect } from '@playwright/test';
 import { gradeLocator, buildLocator, render } from '../extension/qa-focus/ladder.mjs';
+import { parseSnapshotRefs, recordStep } from './flow.mjs';
 
-export function makeBrowserTools({ getCtx, allow = () => true, allowlist = [], sink, findings, saveState, statePath }) {
+export function makeBrowserTools({ getCtx, allow = () => true, allowlist = [], sink, findings, saveState, statePath, flow }) {
   const step = (s) => sink?.steps?.push(s);
   const tool = (name, def) => ({ name, def });
+  // The latest snapshot's ref→{role,name} map, so by-ref actions can be recorded as
+  // DURABLE accessible steps in `flow` (the explorer→codifier handoff). Refs themselves
+  // are ephemeral; the role+name behind them is what the codifier re-walks.
+  let refMap = new Map();
 
   return [
     tool('browser_snapshot', {
@@ -30,6 +35,7 @@ export function makeBrowserTools({ getCtx, allow = () => true, allowlist = [], s
         const { pwcli } = await getCtx();
         const r = await pwcli.cmd('snapshot', ...(a?.depth ? ['--depth', String(a.depth)] : []));
         step('snapshot');
+        if (r.ok) refMap = parseSnapshotRefs(r.out); // refresh ref→accessible-name for durable step capture
         return r.ok ? r.out : { textResultForLlm: `snapshot failed: ${r.out}`, resultType: 'failure' };
       },
     }),
@@ -42,6 +48,7 @@ export function makeBrowserTools({ getCtx, allow = () => true, allowlist = [], s
         const { pwcli } = await getCtx();
         const r = await pwcli.cmd('goto', a.url);
         step(`goto ${a.url}`);
+        if (r.ok) recordStep(flow, { action: 'goto', url: a.url });
         return r.ok ? `at ${a.url}` : { textResultForLlm: `goto failed: ${r.out}`, resultType: 'failure' };
       },
     }),
@@ -53,6 +60,7 @@ export function makeBrowserTools({ getCtx, allow = () => true, allowlist = [], s
         const { pwcli } = await getCtx();
         const r = await pwcli.cmd('click', a.ref);
         step(`click ${a.ref}`);
+        if (r.ok) recordStep(flow, { action: 'click', ...(refMap.get(a.ref) || {}) });
         return r.ok ? 'clicked' : { textResultForLlm: `click failed: ${r.out}`, resultType: 'failure' };
       },
     }),
@@ -64,6 +72,7 @@ export function makeBrowserTools({ getCtx, allow = () => true, allowlist = [], s
         const { pwcli } = await getCtx();
         const r = await pwcli.cmd('fill', a.ref, a.text, ...(a.submit ? ['--submit'] : []));
         step(`fill ${a.ref} = "${a.text}"${a.submit ? ' +submit' : ''}`);
+        if (r.ok) recordStep(flow, { action: 'fill', ...(refMap.get(a.ref) || {}), text: a.text, ...(a.submit ? { submit: true } : {}) });
         return r.ok ? 'filled' : { textResultForLlm: `fill failed: ${r.out}`, resultType: 'failure' };
       },
     }),
@@ -75,6 +84,7 @@ export function makeBrowserTools({ getCtx, allow = () => true, allowlist = [], s
         const { pwcli } = await getCtx();
         const r = await pwcli.cmd('press', a.key);
         step(`press ${a.key}`);
+        if (r.ok) recordStep(flow, { action: 'press', key: a.key });
         return r.ok ? 'pressed' : { textResultForLlm: `press failed: ${r.out}`, resultType: 'failure' };
       },
     }),
@@ -122,6 +132,9 @@ export function makeBrowserTools({ getCtx, allow = () => true, allowlist = [], s
         try {
           await expect(loc).toBeVisible({ timeout: 5000 });
           step(`verify ${render(proposal)} ✓`);
+          recordStep(flow, a.role
+            ? { action: 'expect', role: a.role, ...(a.name ? { name: a.name } : {}), ...(a.frame ? { frame: a.frame } : {}) }
+            : { action: 'expect', text: a.text, ...(a.frame ? { frame: a.frame } : {}) });
           return `verified visible: ${render(proposal)}`;
         } catch {
           step(`verify ${render(proposal)} ✗ (not visible)`);

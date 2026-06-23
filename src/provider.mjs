@@ -66,6 +66,10 @@ export async function openSurface({ kind = 'web', electronArgs = [], cdpUrl, cha
     };
   }
   if (kind === 'electron') {
+    // NOTE: electronArgs must point at the app DIRECTORY (a folder with package.json "main"),
+    // NOT a bare main.js path — Electron does not treat a lone .js file as the app entry, so
+    // the app never starts and firstWindow() hangs (see docs/REGRESSIONS.md #1). On headless
+    // Linux/CI also pass '--no-sandbox' and launch under xvfb.
     const app = await _electron.launch({ args: electronArgs });
     const page = await app.firstWindow();
     return { kind, context: page.context(), page, electronApp: app, close: () => app.close() };

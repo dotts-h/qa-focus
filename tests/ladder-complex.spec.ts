@@ -8,18 +8,25 @@ import { chromium, Browser } from 'playwright';
 import { gradeLocator, render } from '../extension/qa-focus/ladder.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const PORT = 3055;
-const URL = `http://localhost:${PORT}`;
 
 let server: ChildProcess;
 let browser: Browser;
+let URL: string;
 
 test.beforeAll(async () => {
   server = spawn('node', [join(HERE, '../fixtures/complex/server.mjs')], {
-    stdio: 'ignore',
-    env: { ...process.env, CX_PORT: String(PORT) },
+    stdio: ['ignore', 'pipe', 'ignore'],
+    env: { ...process.env, CX_PORT: '0' }, // ephemeral port → no cross-run collision
   });
-  await new Promise((r) => setTimeout(r, 500));
+  // The server prints its bound port once it's actually listening — that line is
+  // both the address and the readiness signal (replaces a fixed-delay sleep).
+  const port = await new Promise<number>((resolve) => {
+    server.stdout!.on('data', (b) => {
+      const m = String(b).match(/localhost:(\d+)/);
+      if (m) resolve(Number(m[1]));
+    });
+  });
+  URL = `http://localhost:${port}`;
 });
 test.afterAll(async () => {
   await browser?.close();

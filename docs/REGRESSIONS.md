@@ -10,7 +10,8 @@
 
 | # | symptom | root cause | guard test |
 |---|---------|------------|------------|
-| — | *(none yet)* | — | — |
+| 1 | Electron surface: `_electron.launch({args:[main.js]})` succeeds but `firstWindow()` hangs forever (main process prints "Waiting for the debugger to disconnect…", 0 windows) | Electron was pointed at a **bare `main.js` path**, which it does not treat as the app entry — the app never runs. Electron needs the **app directory** (with `package.json` `"main"`). | `tests/live-electron.spec.ts` (launches `fixtures/electron/` the directory; `fixtures/electron/package.json` provides `main`) |
+| 2 | Flaky iframe gate test under overlapping runs (EADDRINUSE on a fixed fixture port) | `tests/ladder-complex.spec.ts` hard-coded port 3055; concurrent runs collided | same spec now binds `CX_PORT=0` (ephemeral) and reads the bound port from the server's stdout (also the readiness signal) |
 
 ## Dead-ends (tried and rejected)
 
