@@ -20,7 +20,7 @@ never a cycle).
 
 | id | title | status | severity | group | links |
 |----|-------|--------|----------|-------|-------|
-| [0002](0002-openfin-live-verify.md) | OpenFin live-verify (RVM remote-debug + connectOverCDP) | open | high | 0001 | adr:0003 |
+| [0002](0002-openfin-live-verify.md) | OpenFin live-verify (RVM remote-debug + connectOverCDP) | closed | high | 0001 | adr:0003 |
 | [0003](0003-web-chrome-channel.md) | Web — verify gate/explorer on the branded Chrome channel | closed | medium | 0001 | — |
 | [0004](0004-electron-explorer-path.md) | Electron — explorer/codifier in-process action path | closed | medium | 0001 | adr:0001,0005 |
 | [0005](0005-typescript-core-npm.md) | Migrate core to TypeScript + publish typed npm package | closed | high | 0001 | adr:0004 |

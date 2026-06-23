@@ -23,9 +23,9 @@ export { makeAllowlist, guardContext } from './allowlist.mjs';
 export type { AllowPredicate } from './allowlist.mjs';
 export { resolveStorageState } from './authored.mjs';
 
-// Surface provider (web / electron / openfin).
-export { openSurface } from './provider.mjs';
-export type { Surface, SurfaceKind, OpenSurfaceOptions } from './provider.mjs';
+// Surface provider (web / electron / openfin) + OpenFin multi-window selection.
+export { openSurface, listWindows, pickWindow } from './provider.mjs';
+export type { Surface, SurfaceKind, OpenSurfaceOptions, WindowMatch } from './provider.mjs';
 
 // The gated-session control model (the hard leash).
 export { createGatedSession } from './harness.mjs';

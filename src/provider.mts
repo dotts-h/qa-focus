@@ -34,6 +34,12 @@ export interface Surface {
   close: () => Promise<void>;
 }
 
+/** Match an OpenFin/CDP window by URL and/or title (substring or RegExp). */
+export interface WindowMatch {
+  url?: string | RegExp;
+  title?: string | RegExp;
+}
+
 /** Options for `openSurface` — a superset across all surface kinds. */
 export interface OpenSurfaceOptions {
   kind?: string;
@@ -45,6 +51,32 @@ export interface OpenSurfaceOptions {
   slowMo?: number;
   forceOpenShadow?: boolean;
   storageState?: string;
+  /** openfin only: pick a specific window (else the first one). */
+  window?: WindowMatch;
+}
+
+const matches = (value: string, m: string | RegExp): boolean =>
+  typeof m === 'string' ? value.includes(m) : m.test(value);
+
+/**
+ * Every window across all contexts of a CDP-connected browser. OpenFin surfaces an app's
+ * windows as Pages spread across contexts; a flat list is the basis for selecting among them.
+ */
+export function listWindows(browser: Browser): Page[] {
+  return browser.contexts().flatMap((c) => c.pages());
+}
+
+/**
+ * The first window whose url and/or title match — for picking a specific OpenFin window when an
+ * app opens several. Returns `undefined` (never a wrong window) when nothing matches.
+ */
+export async function pickWindow(browser: Browser, match: WindowMatch): Promise<Page | undefined> {
+  for (const p of listWindows(browser)) {
+    if (match.url && !matches(p.url(), match.url)) continue;
+    if (match.title && !matches(await p.title(), match.title)) continue;
+    return p;
+  }
+  return undefined;
 }
 
 /** Poll a CDP http endpoint until /json/version answers (the browser is ready to attach). */
@@ -75,7 +107,7 @@ function forceOpenShadowInit(): void {
 }
 
 export async function openSurface(
-  { kind = 'web', electronArgs = [], cdpUrl, channel, cdpPort, headless = true, slowMo, forceOpenShadow = false, storageState }: OpenSurfaceOptions = {},
+  { kind = 'web', electronArgs = [], cdpUrl, channel, cdpPort, headless = true, slowMo, forceOpenShadow = false, storageState, window }: OpenSurfaceOptions = {},
 ): Promise<Surface> {
   if (kind === 'web') {
     // Expose a CDP http endpoint so the @playwright/cli (the model's action surface)
@@ -109,8 +141,12 @@ export async function openSurface(
   if (kind === 'openfin') {
     if (!cdpUrl) throw new Error('openfin surface needs cdpUrl (e.g. http://localhost:9222) — start the RVM with --remote-debugging-port first');
     const browser = await chromium.connectOverCDP(cdpUrl);
-    const context = browser.contexts()[0] ?? (await browser.newContext());
-    const page = context.pages()[0] ?? (await context.newPage());
+    // Pick the requested window when an app opens several; else the first existing window.
+    const picked = window ? await pickWindow(browser, window) : undefined;
+    const page = picked
+      ?? browser.contexts()[0]?.pages()[0]
+      ?? (await (browser.contexts()[0] ?? (await browser.newContext())).newPage());
+    const context = page.context();
     // OpenFin's RVM already exposes this CDP endpoint — the CLI attaches to the same one.
     return { kind, context, page, browser, cdpEndpoint: cdpUrl, close: () => browser.close() };
   }
