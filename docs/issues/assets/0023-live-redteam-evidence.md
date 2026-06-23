@@ -24,5 +24,10 @@ playwright test live-redteam`.
 Runs A–C show the live model adds a *second* layer (it refuses on its own), but the leash does not
 depend on that — run D shows it denies even when the model fully complies with the operator.
 
+> **What the committed suite re-verifies:** runs A–C are narrative evidence from a manual session
+> (model quotes/refusals — not asserted by a test, since they depend on model goodwill). Only the
+> **run-D denial** is codified (`tests/live-redteam.spec.ts`, leash-denial test) alongside the
+> benign-goal no-escape test; the deterministic `browser_goto` denial is in `tests/injection.spec.ts`.
+
 Codified as the live counterpart to the deterministic layer in `tests/live-redteam.spec.ts`
 (opt-in `REDTEAM_LIVE=1`, skipped in CI so the suite stays offline/free) — see REGRESSIONS R1.
