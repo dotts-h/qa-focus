@@ -1,0 +1,48 @@
+{
+  "goal": "Confirm the Electron Todo app loads: verify the 'Todo' heading is visible, type a task into the 'New task' input, and verify the 'Add' button is present.",
+  "startUrl": "http://localhost:3000",
+  "surface": "electron",
+  "steps": [
+    {
+      "action": "expect",
+      "role": "heading",
+      "name": "Todo"
+    },
+    {
+      "action": "fill",
+      "role": "textbox",
+      "name": "New task",
+      "text": "Buy groceries"
+    },
+    {
+      "action": "expect",
+      "role": "button",
+      "name": "Add"
+    }
+  ],
+  "usage": {
+    "requests": 5,
+    "totals": {
+      "input": 27638,
+      "output": 365,
+      "cacheRead": 18871,
+      "cacheWrite": 8760,
+      "reasoning": 17,
+      "total": 28003
+    },
+    "models": [
+      {
+        "model": "claude-sonnet-4.6",
+        "input": 27638,
+        "output": 365,
+        "cacheRead": 18871,
+        "cacheWrite": 8760,
+        "reasoning": 17,
+        "total": 28003,
+        "requests": 5,
+        "aiCredits": 4.40073
+      }
+    ],
+    "aiCredits": 4.40073
+  }
+}
