@@ -1,19 +1,24 @@
 ---
 id: 0019
 title: Epic: v1.1 — close the deferred remainders
-status: open
+status: closed
 severity: medium
 group: 
 depends_on: []
 github: 38
 forgejo:
 links:
-  adr:
-  prs: []
+  adr: [0009, 0010]
+  prs: [45, 46, 47, 48, 49]
   issues: []
-  regression:
+  regression: [4, R1]
 assets: []
 ---
+
+> **Epic complete 2026-06-24.** All five children landed: #0020 (PR #45), #0022 (PR #46),
+> #0021 (PR #47), #0024 (PR #48), #0023 (PR #49). #0023/#0024 were unblocked mid-milestone
+> (credits unlocked; OpenFin live-verified on the M4 Mac mini) rather than deferred. The live
+> OpenFin run also caught + fixed a real window-selection bug (REGRESSIONS #4).
 
 ## Summary
 v1 (epic #0001) and the multi-host runner (epic #0015) are closed, but a handful of items were
@@ -37,11 +42,11 @@ roadmap reflects the true outstanding state, and drives the **buildable-now** on
   verified against chromium-over-CDP; a live RVM run needs macOS/Windows infra (no Linux runtime).
 
 ## Acceptance
-- [ ] #0020 lands (trace→DOM extraction wired into the healer, gate-verified, tested).
-- [ ] #0021 lands (nested iframe + frameset coverage in the gate, tested).
-- [ ] #0022 lands (`run_spec` execution isolated; SECURITY RESIDUAL updated).
-- [ ] #0023 and #0024 are tracked with their gate (quota / infra) documented; they land when the
-      prerequisite (credits / hardware) is available, or are explicitly deferred to a later milestone.
+- [x] #0020 lands (trace→DOM extraction wired into the healer via a purpose-built snapshot store, ADR 0009).
+- [x] #0021 lands (nested-iframe `frameLocator` chaining + frameset coverage in the gate, tested).
+- [x] #0022 lands (`run_spec` isolated — capability scan + scrubbed env, ADR 0010; SECURITY RESIDUAL → HARDENED).
+- [x] #0023 and #0024 landed (not deferred): #0024 OpenFin **live-verified** on the Mac mini (+ bug fix);
+      #0023 injection red-team **live-verified** with the real model — the leash held / actively denied.
 
 ## Notes
 This is a *completion* epic, not a new pillar — it closes the gap between "documented as future work"
