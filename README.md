@@ -90,6 +90,20 @@ Friendly flags map onto the env contract the harnesses read
 value flag with no value exits non-zero rather than silently using a wrong default. `qa-focus --help`
 lists them all.
 
+## GitHub Copilot CLI plugin
+
+qa-focus also ships as a native **Copilot CLI plugin** — a `qa-focus` skill that teaches the Copilot
+CLI agent when and how to drive the CLI above (explore / codify / the locator gate). It's distributed
+from the **git marketplace** (`plugins/qa-focus/plugin.json` + `.github/plugin/marketplace.json`),
+**bundles no MCP server** ([ADR 0003](docs/adr/0003-distribution-native-adapters-no-mcp.md)):
+
+```bash
+copilot plugin marketplace add dotts-h/qa-focus     # registers this repo as a marketplace
+copilot plugin install qa-focus@qa-focus            # installs the qa-focus skill
+```
+
+(The CLI itself still installs from git — see above; the plugin's skill drives it.)
+
 ## Status
 
 - **Proven:** the locator-priority gate (ladder + scoped tier + graceful degradation, incl. iframes,
