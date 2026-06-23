@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Control-first agentic QA on the Copilot SDK + Playwright: an autonomous explorer that discovers, and a gated codifier that hardens findings into standards-compliant durable tests.",
+  "license": "Apache-2.0",
   "scripts": {
     "test": "playwright test",
     "explore": "node bin/explore.mjs",

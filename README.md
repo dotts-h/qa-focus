@@ -58,3 +58,7 @@ GOAL="harden the add-to-cart flow" SPEC_NAME="add-to-cart" node bin/codify.mjs  
   interactive/explore smoke is the next step.
 
 See `docs/ARCHITECTURE.md`.
+
+## License
+
+[Apache-2.0](LICENSE). Patent grant included.
