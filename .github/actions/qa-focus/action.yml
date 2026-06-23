@@ -1,0 +1,103 @@
+# qa-focus — composite GitHub Action (#0008, ADR 0003: CLI-first, zero MCP).
+#
+# Wraps the git-installed qa-focus CLI so a workflow can: run the authored Playwright suite as a
+# required check (`gate` — no model, no auth), explore a deploy preview (`explore`), or harden a
+# discovered flow (`codify`). explore/codify drive a model, so they need a Copilot token in CI;
+# `gate` needs none and is the default. Web/Electron only on Linux runners (OpenFin needs win/mac, #0002).
+name: qa-focus
+description: Control-first agentic QA in CI — gate the authored Playwright suite, explore a preview, or codify a flow. No MCP.
+author: dotts-h
+branding:
+  icon: check-circle
+  color: purple
+
+inputs:
+  mode:
+    description: gate | explore | codify
+    required: true
+    default: gate
+  goal:
+    description: what to do (explore/codify) — maps to GOAL
+    required: false
+    default: ''
+  url:
+    description: start URL — maps to START_URL
+    required: false
+    default: ''
+  channel:
+    description: browser channel, e.g. chrome — maps to PW_CHANNEL
+    required: false
+    default: ''
+  flow:
+    description: explore-flow JSON path to seed codify — maps to FLOW
+    required: false
+    default: ''
+  spec:
+    description: authored spec name (codify) — maps to SPEC_NAME
+    required: false
+    default: ''
+  specs:
+    description: 'gate mode: the Playwright spec path/glob to run (default: the project default)'
+    required: false
+    default: ''
+  model:
+    description: Copilot model id (explore/codify) — maps to COPILOT_MODEL
+    required: false
+    default: ''
+  allowlist:
+    description: trusted hosts csv — maps to ALLOWLIST
+    required: false
+    default: ''
+  steps:
+    description: step-budget circuit breaker (explore/codify) — maps to STEP_BUDGET
+    required: false
+    default: ''
+  copilot-token:
+    description: token for the installed copilot login (REQUIRED for explore/codify; unused by gate)
+    required: false
+    default: ''
+  ref:
+    description: qa-focus git ref to install (branch/tag/sha)
+    required: false
+    default: main
+
+outputs:
+  artifact:
+    description: path to the evidence artifact (explore)
+    value: ${{ steps.run.outputs.artifact }}
+  flow:
+    description: path to the durable flow JSON (explore)
+    value: ${{ steps.run.outputs.flow }}
+  result:
+    description: pass | fail — the run's outcome
+    value: ${{ steps.run.outputs.result }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    - name: Install qa-focus (from git — no npm registry, ADR 0006)
+      shell: bash
+      run: npm i -g "github:dotts-h/qa-focus#${{ inputs.ref }}"
+    - name: Install Playwright Chromium
+      shell: bash
+      run: npx --yes playwright install --with-deps chromium
+    - name: Run qa-focus
+      id: run
+      shell: bash
+      run: bash "${{ github.action_path }}/run.sh"
+      env:
+        QA_MODE: ${{ inputs.mode }}
+        GOAL: ${{ inputs.goal }}
+        START_URL: ${{ inputs.url }}
+        PW_CHANNEL: ${{ inputs.channel }}
+        FLOW: ${{ inputs.flow }}
+        SPEC_NAME: ${{ inputs.spec }}
+        QA_SPECS: ${{ inputs.specs }}
+        COPILOT_MODEL: ${{ inputs.model }}
+        ALLOWLIST: ${{ inputs.allowlist }}
+        STEP_BUDGET: ${{ inputs.steps }}
+        COPILOT_TOKEN: ${{ inputs.copilot-token }}

@@ -1,0 +1,32 @@
+# Example: how a consumer wires the qa-focus action into CI (#0008). Manual-only
+# (workflow_dispatch) so it never auto-runs this repo's CI or spends a token — it documents the
+# usage and can be triggered by hand. In your own repo, use `uses: dotts-h/qa-focus/.github/actions/qa-focus@main`.
+name: qa-focus (example, manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: gate | explore | codify
+        type: choice
+        options: [gate, explore, codify]
+        default: gate
+      url:
+        description: start URL (explore/codify)
+        required: false
+
+jobs:
+  qa-focus:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: qa
+        uses: ./.github/actions/qa-focus
+        with:
+          mode: ${{ inputs.mode }}
+          url: ${{ inputs.url }}
+          # explore/codify need a Copilot login token; gate needs none:
+          # copilot-token: ${{ secrets.COPILOT_TOKEN }}
+      - name: Show result
+        shell: bash
+        run: echo "qa-focus result=${{ steps.qa.outputs.result }} flow=${{ steps.qa.outputs.flow }}"
