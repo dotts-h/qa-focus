@@ -31,8 +31,19 @@ export function renderArtifact({ goal, sink, findings = [], tracePath }) {
   const L = ['# QA Explore artifact', '', `**Goal:** ${goal}`, ''];
   L.push('## Steps', ...(sink.steps.length ? sink.steps.map((s, i) => `${i + 1}. ${s}`) : ['_none_']), '');
   if (findings.length) {
-    L.push('## Findings (human-verify — not self-certified)');
-    for (const f of findings) L.push(`- **[${f.severity || '?'}]** ${f.title}${f.detail ? ` — ${f.detail}` : ''}`);
+    // Dedupe by title (axe re-runs across pages repeat the same violation type) and rank
+    // by severity so the worst surfaces first. axe findings are tool-verified; model
+    // report_finding ones are tagged for the human to verify.
+    const rank = { high: 0, medium: 1, low: 2 };
+    const seen = new Set();
+    const unique = findings.filter((f) => { const k = (f.title || '').trim(); if (seen.has(k)) return false; seen.add(k); return true; });
+    unique.sort((a, b) => (rank[a.severity] ?? 3) - (rank[b.severity] ?? 3));
+    L.push('## Findings (ranked; axe = tool-verified, model = human-verify)');
+    for (const f of unique) {
+      const tag = f.source === 'axe' ? '·axe' : '';
+      L.push(`- **[${f.severity || '?'}${tag}]** ${f.title}${f.detail ? ` — ${f.detail}` : ''}`);
+    }
+    if (unique.length < findings.length) L.push(`_(${findings.length - unique.length} duplicate finding(s) collapsed)_`);
     L.push('');
   }
   if (sink.console.length) L.push('## Console', '```', ...[...new Set(sink.console)].slice(0, 50), '```', '');

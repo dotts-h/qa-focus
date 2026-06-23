@@ -1,100 +1,89 @@
-// qa-focus — Copilot CLI extension.
+// qa-focus — Copilot CLI extension (the INTERACTIVE front door).
 //
-// Drop this directory into a repo's `.github/extensions/` (project-scoped) or
-// the user's copilot extensions dir (machine-scoped). Every `copilot` session
-// then gains two standards-enforcing tools and an always-on standards reminder:
+// Drop this directory into a repo's `.github/extensions/` (project-scoped) or the
+// user's copilot extensions dir (machine-scoped), then run `copilot` inside the
+// qa-focus repo. Your interactive session gains the full drive → explore → harden
+// loop against ONE live browser:
 //
-//   • inspect_aom({ url?, region? })   — the accessibility tree of a live page
-//   • propose_locator({ tier, ... })   — graded against the live page by the
-//     priority ladder (focus-probe/qa-focus/ladder.mjs). Lazy CSS is bounced
-//     toward role or a scoped accessible locator; genuine no-handle elements
-//     degrade to CSS only with a reason, logged as accessibility debt.
+//   • browser_* (snapshot/goto/click/fill/press/expect_visible) — the same gated,
+//     CLI-ref-backed browser tools the autonomous explorer uses (src/browser-tools.mjs),
+//     so you can say "log in and stop", then "now explore the cart", turn by turn.
+//   • propose_locator — grade a locator against the CURRENT live page by the priority
+//     ladder (ladder.mjs); lazy CSS is bounced toward role/scoped, no-handle elements
+//     degrade to CSS only with a reason (logged as accessibility debt).
+//   • write_spec / run_spec — codify a hardened flow into a Playwright test file and
+//     run it through the real gate (playwright test). "Verify on a real signal."
 //
-// Unlike the standalone harness (prove.mjs), an extension JOINS the user's
-// session, so it cannot remove built-in tools — this is the lighter, always-on
-// leash: it makes the compliant path available and reminds every turn, rather
-// than caging the model. Use the standalone harness for hard-gated CI runs.
+// Unlike the standalone harness (bin/explore.mjs), an extension JOINS your session,
+// so it CANNOT remove copilot's built-in tools — the leash here is human-in-the-loop
+// approval (you see/approve each turn), not tool-caging. Use the standalone harness
+// for unattended/CI runs where the hard injection-defense leash matters.
 //
-// Requires `@playwright/test` resolvable from where this extension lives (a
-// Playwright e2e repo already has it). `@github/copilot-sdk` is auto-injected.
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+// Env: QA_ALLOWLIST (csv, default "localhost"), CDP_PORT (default 9222),
+//      HEADED=1 to watch the browser, SLOWMO (ms, headed), PW_CHANNEL.
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { joinSession } from '@github/copilot-sdk/extension';
-import { chromium } from '@playwright/test';
-import { gradeLocator, render } from './ladder.mjs';
+import { openSurface } from '../../src/provider.mjs';
+import { makeAllowlist, guardContext } from '../../src/allowlist.mjs';
+import { makePwCli } from '../../src/pwcli.mjs';
+import { makeBrowserTools } from '../../src/browser-tools.mjs';
+import { makeCodifyTools } from '../../src/codify-tools.mjs';
+import { STANDARDS_PROMPT } from '../../src/standards.mjs';
 
-const STATE = join(tmpdir(), 'qa-focus-state.json');
-const STANDARDS =
-  'PLAYWRIGHT LOCATOR STANDARDS (always on): use the priority ladder ' +
-  'role > label > placeholder > text > altText > title > testid > scoped (accessible parent + child) > css/xpath. ' +
-  'Never hand-write CSS/XPath when an accessible locator works. Disambiguate non-unique names by scoping to an ' +
-  'accessible ancestor (e.g. a table row) BEFORE using css. No hard sleeps; use web-first assertions.';
+const HERE = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(HERE, '../..'); // project root (has playwright.config.ts, tests/)
+const ALLOWLIST = (process.env.QA_ALLOWLIST || 'localhost').split(',');
+const CDP_PORT = Number(process.env.CDP_PORT || 9222);
 
-const load = () => (existsSync(STATE) ? JSON.parse(readFileSync(STATE, 'utf8')) : { facts: [], debt: [] });
-const save = (s) => writeFileSync(STATE, JSON.stringify(s, null, 2));
-
-let browser, page, currentUrl;
-async function ensurePage(url) {
-  if (!browser) { browser = await chromium.launch({ channel: process.env.PW_CHANNEL || 'chromium' }); page = await browser.newPage(); }
-  if (url && url !== currentUrl) { await page.goto(url, { waitUntil: 'domcontentloaded' }); currentUrl = url; }
-  if (!currentUrl) throw new Error('no page loaded yet — call inspect_aom with a url first');
-  return page;
+// One live browser for the whole session, opened LAZILY on first tool use (so the
+// extension calls joinSession promptly and never blocks the load handshake). Our
+// in-process Playwright owns it (gate + allowlist watch the real page); the CLI
+// attaches over CDP as the action surface.
+const allow = makeAllowlist(ALLOWLIST);
+const findings = [];
+const facts = []; // accepted-locator facts, re-injected each turn for recency
+let driver; // { surface, pw, page }
+async function getCtx() {
+  if (!driver) {
+    const surface = await openSurface({
+      kind: 'web',
+      channel: process.env.PW_CHANNEL,
+      cdpPort: CDP_PORT,
+      headless: !process.env.HEADED,
+      slowMo: process.env.HEADED ? Number(process.env.SLOWMO || 350) : undefined,
+      forceOpenShadow: !!process.env.FORCE_OPEN_SHADOW,
+    });
+    await guardContext(surface.context, allow);
+    const pw = makePwCli({ session: 'qa-focus-ext' });
+    const att = await pw.attach(surface.cdpEndpoint);
+    if (!att.ok) throw new Error(`playwright-cli failed to attach over CDP: ${att.out}`);
+    driver = { surface, pw, page: surface.page };
+  }
+  return { page: driver.page, pwcli: driver.pw };
 }
+const cleanup = () => { driver?.pw.detach().catch(() => {}); driver?.surface.close().catch(() => {}); };
+for (const sig of ['SIGINT', 'SIGTERM', 'exit']) process.on(sig, cleanup);
+
+const browserTools = makeBrowserTools({ getCtx, allow, allowlist: ALLOWLIST, findings })
+  .map(({ name, def }) => ({ name, ...def }));
+const codifyTools = makeCodifyTools({ getCtx, root: ROOT, facts })
+  .map(({ name, def }) => ({ name, ...def }));
 
 const session = await joinSession({
-  tools: [
-    {
-      name: 'inspect_aom',
-      description: 'Load a URL (once) and return the accessibility tree (roles + names) of the page or a CSS region. Call before proposing a locator.',
-      parameters: { type: 'object', properties: { url: { type: 'string' }, region: { type: 'string' } } },
-      skipPermission: true,
-      handler: async (a) => {
-        const p = await ensurePage(a?.url);
-        return await p.locator(a?.region || 'body').ariaSnapshot();
-      },
-    },
-    {
-      name: 'propose_locator',
-      description:
-        'Propose ONE locator following the priority ladder. For non-unique accessible names, pass `scope` (an accessible ' +
-        'parent such as a table row) plus the child role/name. css/xpath are last-resort and REQUIRE a "reason". ' +
-        'Returns the validated Playwright expression to paste into a test, or a rejection telling you the better tier.',
-      parameters: {
-        type: 'object',
-        required: ['tier'],
-        properties: {
-          tier: { enum: ['role', 'label', 'placeholder', 'text', 'altText', 'title', 'testid', 'css', 'xpath'] },
-          intent: { type: 'string' }, role: { type: 'string' }, name: { type: 'string' },
-          scope: { type: 'object', properties: { tier: { type: 'string' }, role: { type: 'string' }, name: { type: 'string' }, expression: { type: 'string' }, exact: { type: 'boolean' } } },
-          expression: { type: 'string' }, exact: { type: 'boolean' }, reason: { type: 'string' },
-        },
-      },
-      skipPermission: true,
-      handler: async (p) => {
-        const pg = await ensurePage();
-        const v = await gradeLocator(pg, p);
-        if (!v.ok) {
-          const hint = v.suggestion ? ` Use ${v.suggestion}.` : v.suggestedTier ? ` Try tier "${v.suggestedTier}".` : '';
-          return { textResultForLlm: `REJECTED: ${v.reason}.${hint}`, resultType: 'failure' };
-        }
-        const code = render(p);
-        const s = load();
-        s.facts.push(`"${p.intent || code}" → ${code} (${v.tier}${v.degraded ? ', DEBT' : ''}).`);
-        if (v.debt) s.debt.push({ ...v.debt, code });
-        save(s);
-        return { textResultForLlm: `ACCEPTED at tier "${v.tier}". Use:\n${code}${v.degraded ? '\n(logged as accessibility debt — file a ticket to add an accessible handle)' : ''}`, resultType: 'success' };
-      },
-    },
-  ],
+  tools: [...browserTools, ...codifyTools],
   hooks: {
-    // Always-on standards + accumulated facts, re-injected each turn.
     onUserPromptSubmitted: async () => {
-      const facts = load().facts;
+      // Don't tax UNRELATED turns: until the browser is actually engaged (driver opened on
+      // first QA tool use, or facts/findings recorded), inject nothing. An always-loaded
+      // extension that pushes its standards block on every prompt is the per-turn-cost
+      // anti-pattern; the real fix is to load qa-focus opt-in, this caps the cost when it is.
+      if (!driver && !facts.length && !findings.length) return undefined;
       const extra = facts.length ? `\nESTABLISHED THIS SESSION:\n- ${facts.slice(-12).join('\n- ')}` : '';
-      return { additionalContext: STANDARDS + extra };
+      const found = findings.length ? `\nFINDINGS SO FAR: ${findings.length} (use report_finding to add).` : '';
+      return { additionalContext: STANDARDS_PROMPT + extra + found };
     },
   },
 });
 
-session.log?.('qa-focus extension loaded — standards-enforcing locator tools active.');
+session.log?.(`qa-focus extension loaded — browser+gate+codify tools active (allowlist: ${ALLOWLIST.join(', ')}${process.env.HEADED ? ', HEADED' : ''}).`);

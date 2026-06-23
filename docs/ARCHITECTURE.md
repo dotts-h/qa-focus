@@ -12,6 +12,21 @@
 The explorer **finds**; the codifier **hardens** the worthwhile flows. Neither replaces the other;
 trying to get durable tests out of an autonomous explorer is the trap this project exists to avoid.
 
+## Three entry points, one set of gated tools
+
+The browser tools (`src/browser-tools.mjs`) and codifier tools (`src/codify-tools.mjs`) are shared
+across all three runners:
+
+| Entry point | Leash | Use |
+|---|---|---|
+| `bin/explore.mjs` | **HARD** (`availableTools` caged + `onPreToolUse` deny + `STEP_BUDGET`) | autonomous one-shot discovery |
+| `bin/interactive.mjs` | **HARD** (same cage), turn-by-turn over stdin | interactive drive → explore → harden **with enforcement** |
+| `extension/qa-focus/` (Copilot extension) | **SOFT** (human-approval; cannot remove copilot's built-in tools) | interactive inside your own `copilot` session |
+
+The hard-leash matters: in a Copilot *extension* session the model retains shell/fs tools and was
+observed **routing around the gate** (writing ad-hoc scripts). The enforcing path (`interactive.mjs`)
+removes every non-gated tool, so the gate cannot be bypassed.
+
 ## Control is the engine
 
 Both modes are the same shape: **the program owns the loop, the model fills typed holes, a

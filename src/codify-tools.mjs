@@ -1,0 +1,85 @@
+// Shared CODIFIER tools — turn a discovered flow into a durable, standards-compliant
+// Playwright test, used by BOTH the interactive Copilot extension and the hard-leash
+// interactive REPL (bin/interactive.mjs), so there is one implementation.
+//
+//   • propose_locator — grade ONE locator against the CURRENT live page by the priority
+//     ladder (ladder.mjs); supports `scope` (accessible ancestor) and `frame` (iframe).
+//   • write_spec       — write tests/authored/<name>.spec.ts, REJECTED if it breaks the
+//     deterministic Playwright-standards linter (standards.mjs).
+//   • run_spec         — run the authored spec through `playwright test` (the real gate).
+//
+// `getCtx` is async () => { page } resolved per call (lazy browser). `facts` is a
+// caller-owned array of accepted-locator facts (re-injected each turn for recency).
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { execFile } from 'node:child_process';
+import { gradeLocator, render } from '../extension/qa-focus/ladder.mjs';
+import { lintSpec, renderViolations } from './standards.mjs';
+
+const slug = (s) => String(s || 'flow').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'flow';
+
+export function makeCodifyTools({ getCtx, root, facts = [] }) {
+  const tool = (name, def) => ({ name, def });
+
+  return [
+    tool('propose_locator', {
+      description:
+        'Propose ONE durable locator for the CURRENT page, graded by the priority ladder ' +
+        '(role > label > placeholder > text > altText > title > testid > scoped > css/xpath). ' +
+        'For non-unique accessible names pass `scope` (an accessible parent such as a table row) + child role/name. ' +
+        'For an element inside an IFRAME pass `frame` (an <iframe> CSS selector) → rendered as page.frameLocator(...).…. ' +
+        'Open shadow DOM is auto-pierced; XPath does NOT pierce shadow DOM. css/xpath are last-resort and REQUIRE a "reason". ' +
+        'Returns the validated Playwright expression, or a rejection naming the better tier.',
+      parameters: {
+        type: 'object',
+        required: ['tier'],
+        properties: {
+          tier: { enum: ['role', 'label', 'placeholder', 'text', 'altText', 'title', 'testid', 'css', 'xpath'] },
+          intent: { type: 'string' }, role: { type: 'string' }, name: { type: 'string' },
+          scope: { type: 'object', properties: { tier: { type: 'string' }, role: { type: 'string' }, name: { type: 'string' }, expression: { type: 'string' }, exact: { type: 'boolean' } } },
+          frame: { type: 'string', description: 'CSS selector for the containing <iframe>, when the element lives inside one' },
+          expression: { type: 'string' }, exact: { type: 'boolean' }, reason: { type: 'string' },
+        },
+      },
+      skipPermission: true,
+      handler: async (p) => {
+        const { page } = await getCtx();
+        const v = await gradeLocator(page, p);
+        if (!v.ok) {
+          const hint = v.suggestion ? ` Use ${v.suggestion}.` : v.suggestedTier ? ` Try tier "${v.suggestedTier}".` : '';
+          return { textResultForLlm: `REJECTED: ${v.reason}.${hint}`, resultType: 'failure' };
+        }
+        const code = render(p);
+        facts.push(`"${p.intent || code}" → ${code} (${v.tier}${v.degraded ? ', DEBT' : ''}).`);
+        return { textResultForLlm: `ACCEPTED at tier "${v.tier}". Use:\n${code}${v.degraded ? '\n(logged as accessibility debt — file a ticket to add an accessible handle)' : ''}`, resultType: 'success' };
+      },
+    }),
+    tool('write_spec', {
+      description: 'Write a Playwright test file under tests/authored/<name>.spec.ts. Use only gate-ACCEPTED locators (from propose_locator). The source is linted against Playwright standards (no hard sleeps, no networkidle, no raw element handles, no XPath) and REJECTED if it violates them. Then call run_spec to verify it passes.',
+      parameters: { type: 'object', required: ['name', 'code'], properties: { name: { type: 'string' }, code: { type: 'string', description: 'full .spec.ts source' } } },
+      handler: async (a) => {
+        const { ok, violations } = lintSpec(a.code);
+        if (!ok) return { textResultForLlm: `REJECTED — spec violates Playwright standards:\n${renderViolations(violations.filter((v) => !v.warn))}\nFix and resubmit.`, resultType: 'failure' };
+        const dir = join(root, 'tests', 'authored');
+        mkdirSync(dir, { recursive: true });
+        const file = join(dir, `${slug(a.name)}.spec.ts`);
+        writeFileSync(file, a.code);
+        const warns = violations.filter((v) => v.warn);
+        return `wrote ${file}${warns.length ? `\n(advisory:\n${renderViolations(warns)})` : ''} — now call run_spec to verify it.`;
+      },
+    }),
+    tool('run_spec', {
+      description: 'Run an authored spec (or all of tests/authored) through Playwright — the deterministic gate. Returns pass/fail and output.',
+      parameters: { type: 'object', properties: { name: { type: 'string', description: 'spec name to run; omit to run all authored specs' } } },
+      handler: async (a) => {
+        const target = a?.name ? join('tests', 'authored', `${slug(a.name)}.spec.ts`) : join('tests', 'authored');
+        return await new Promise((resolve) => {
+          execFile('npx', ['playwright', 'test', target, '--reporter=line'], { cwd: root, maxBuffer: 16 << 20, env: { ...process.env, RUN_AUTHORED: '1' } }, (err, stdout, stderr) => {
+            const out = `${stdout || ''}${stderr ? `\n${stderr}` : ''}`.trim().slice(-4000);
+            resolve(err ? { textResultForLlm: `FAILED:\n${out}`, resultType: 'failure' } : `PASSED:\n${out}`);
+          });
+        });
+      },
+    }),
+  ];
+}

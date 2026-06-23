@@ -3,6 +3,10 @@ import { defineConfig, devices } from '@playwright/test';
 // Timeouts live here, never as hard sleeps in tests.
 export default defineConfig({
   testDir: './tests',
+  // Authored specs (tests/authored/) are durable tests the CODIFIER writes for a TARGET
+  // app — they hit the network and must NOT run in the deterministic offline suite.
+  // run_spec sets RUN_AUTHORED=1 to include them when it runs an authored spec by name.
+  testIgnore: process.env.RUN_AUTHORED ? [] : ['**/authored/**'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
