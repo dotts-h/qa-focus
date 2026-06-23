@@ -26,7 +26,7 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { createGatedSession } from '../src/harness.mjs';
 import { openSurface } from '../src/provider.mjs';
 import { makeAllowlist, guardContext } from '../src/allowlist.mjs';
@@ -48,9 +48,13 @@ const log = (...a: unknown[]): void => console.log('[explore]', ...a);
 
 async function main(): Promise<void> {
   const allow = makeAllowlist(ALLOWLIST);
+  // The bundled demo server is a dev convenience; it ships only with the repo, not the published
+  // package (files:[dist]). Spawn it only when it's actually present — an installed `qa-focus`
+  // points START_URL at the user's own app.
   let server;
-  if (START_URL.startsWith('http://localhost:3000')) {
-    server = spawn('node', [join(HERE, '../fixtures/app/server.mjs')], { stdio: 'ignore', env: { ...process.env, PORT: '3000' } });
+  const demoServer = join(HERE, '../fixtures/app/server.mjs');
+  if (START_URL.startsWith('http://localhost:3000') && existsSync(demoServer)) {
+    server = spawn('node', [demoServer], { stdio: 'ignore', env: { ...process.env, PORT: '3000' } });
     await new Promise((r) => setTimeout(r, 500));
   }
 
@@ -115,14 +119,17 @@ async function main(): Promise<void> {
     240_000,
   );
 
-  mkdirSync(join(HERE, '../artifacts'), { recursive: true });
-  const tracePath = join(HERE, '../artifacts/explore-trace.zip');
+  // Artifacts go in the USER's project (cwd), not the package install dir — so the README's
+  // `qa-focus codify --flow artifacts/explore-flow.json` handoff resolves where the user runs.
+  const artifactsDir = join(process.cwd(), 'artifacts');
+  mkdirSync(artifactsDir, { recursive: true });
+  const tracePath = join(artifactsDir, 'explore-trace.zip');
   await context.tracing.stop({ path: tracePath });
   const md = renderArtifact({ goal: GOAL, sink, findings, tracePath });
-  const out = join(HERE, '../artifacts/explore-report.md');
+  const out = join(artifactsDir, 'explore-report.md');
   writeFileSync(out, md);
   // The machine-readable flow — the codifier's input for the M4 handoff.
-  const flowOut = join(HERE, '../artifacts/explore-flow.json');
+  const flowOut = join(artifactsDir, 'explore-flow.json');
   writeFileSync(flowOut, JSON.stringify(flow, null, 2));
   log('artifact:', out, '| flow:', flowOut, `(${flow.steps.length} steps)`);
   console.log('\n' + md);

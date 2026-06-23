@@ -19,7 +19,7 @@ import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { createGatedSession } from '../src/harness.mjs';
 import { openSurface } from '../src/provider.mjs';
 import { makeAllowlist, guardContext } from '../src/allowlist.mjs';
@@ -33,7 +33,10 @@ import { resolveCopilotCli } from '../src/copilot-path.mjs';
 import { STANDARDS_PROMPT } from '../src/standards.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(HERE, '..');
+// Specs, artifacts and the run_spec gate belong in the USER's project (their playwright.config),
+// so ROOT is the invocation cwd — not join(HERE,'..') (the package's dist/ when installed). In dev
+// (run from the repo root) process.cwd() IS the repo root, so behavior is unchanged.
+const ROOT = process.cwd();
 const CLI = resolveCopilotCli();
 const START_URL = process.env.START_URL || 'http://localhost:3000';
 const ALLOWLIST = (process.env.ALLOWLIST || 'localhost').split(',');
@@ -42,9 +45,12 @@ const log = (...a: unknown[]): void => console.log('[qa]', ...a);
 
 async function main(): Promise<void> {
   const allow = makeAllowlist(ALLOWLIST);
+  // The bundled demo server ships only with the repo, not the published package — spawn it only
+  // when present (an installed qa-focus points START_URL at the user's own app).
   let server;
-  if (START_URL.startsWith('http://localhost:3000')) {
-    server = spawn('node', [join(HERE, '../fixtures/app/server.mjs')], { stdio: 'ignore', env: { ...process.env, PORT: '3000' } });
+  const demoServer = join(HERE, '../fixtures/app/server.mjs');
+  if (START_URL.startsWith('http://localhost:3000') && existsSync(demoServer)) {
+    server = spawn('node', [demoServer], { stdio: 'ignore', env: { ...process.env, PORT: '3000' } });
     await new Promise((r) => setTimeout(r, 500));
   }
 
