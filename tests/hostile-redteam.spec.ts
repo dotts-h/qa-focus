@@ -62,6 +62,8 @@ test('layer 1, live: guardContext loads the hostile page but ABORTS navigation t
   // The injection's "continue" link really points off-allowlist…
   expect(await page.locator('#exfil-link').getAttribute('href')).toContain('evil.attacker.example');
   // …and a navigation there — however the model were tricked into triggering it — is blocked at the
-  // network layer before any request leaves the browser.
-  await expect(page.goto(EXFIL, { waitUntil: 'domcontentloaded' })).rejects.toThrow();
+  // network layer before any request leaves the browser. Assert the SPECIFIC block reason
+  // (ERR_BLOCKED_BY_CLIENT from route.abort), not just any throw — otherwise a DNS failure on the
+  // non-resolvable host would make this pass even if guardContext were removed (false positive).
+  await expect(page.goto(EXFIL, { waitUntil: 'domcontentloaded' })).rejects.toThrow(/ERR_BLOCKED_BY_CLIENT|blockedbyclient/i);
 });
