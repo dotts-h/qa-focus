@@ -1,9 +1,20 @@
-# OpenFin fixture — live-verify (#0002)
+# OpenFin fixture — live-verify (#0002, #0024)
 
 OpenFin's runtime is **Windows/macOS only — no Linux** (verified), so this is run by hand on the
 Mac mini or a Windows VM, not on the Linux CI box. The *mechanism* (connectOverCDP + window-as-Page
 + multi-window selection) is proven deterministically against chromium-over-CDP in
 `tests/openfin-cdp.spec.ts`; this fixture is for the real-RVM signal.
+
+**No license key needed for this.** OpenFin (now "Here"/io.Connect) offers a free Community/Developer
+license; the manifest `licenseKey` field and a commercial license are *production-deployment*
+concerns — running your own `app.json` locally just needs the free `openfin-cli` (public npm).
+
+**Apple-Silicon gotchas (verified 2026-06-24 on the M4 Mac mini):** the macOS OpenFin RVM binary is
+**x86_64**, so the runtime spawn fails with `Unknown system error -86` (EBADARCH) until **Rosetta 2**
+is installed (`softwareupdate --install-rosetta --agree-to-license`). Launching the RVM over SSH also
+needs the active GUI/Aqua session: `sudo launchctl asuser <console-uid> sudo -u <user> openfin -l -c …`
+(a plain SSH spawn dies with "Could not switch to audit session: Operation not permitted").
+Live-verified end-to-end on the mini: OpenFin runtime 44.146.101.4, all `live-openfin` tests green.
 
 ## Run it
 

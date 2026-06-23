@@ -31,7 +31,7 @@ export type { AllowPredicate } from './allowlist.mjs';
 export { resolveStorageState } from './authored.mjs';
 
 // Surface provider (web / electron / openfin) + OpenFin multi-window selection.
-export { openSurface, listWindows, pickWindow } from './provider.mjs';
+export { openSurface, listWindows, pickWindow, isInternalWindow, firstAppWindow } from './provider.mjs';
 export type { Surface, SurfaceKind, OpenSurfaceOptions, WindowMatch } from './provider.mjs';
 
 // The gated-session control model (the hard leash).
