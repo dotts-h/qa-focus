@@ -22,13 +22,13 @@ deterministic gate verifies every step. Uses the **installed `copilot` login** (
 
 ## Layout
 - `extension/qa-focus/` — the locator gate (`ladder.mjs`) + installable Copilot CLI extension
-- `bin/explore.mjs` — autonomous explorer; `bin/codify.mjs` — autonomous codifier; `bin/interactive.mjs` — enforcing REPL
+- `bin/explore.mts` — autonomous explorer; `bin/codify.mts` — autonomous codifier; `bin/interactive.mts` — enforcing REPL (TypeScript; run via `tsx`)
 - `src/harness.mjs` — the gated-session control model (one home for the hard leash, ADR 0002)
 - `src/{provider,allowlist,evidence,browser-tools,codify-tools}.mjs`; `fixtures/app/` sample app; `tests/` (deterministic, green)
 
 ## Run
 - `PW_CHANNEL=chromium npm test` — deterministic gate + allowlist proofs (no model, no quota)
-- `GOAL="…" node bin/explore.mjs` / `GOAL="…" SPEC_NAME="…" node bin/codify.mjs` — live, uses the installed copilot login
+- `GOAL="…" npx tsx bin/explore.mts` / `GOAL="…" SPEC_NAME="…" npx tsx bin/codify.mts` (or `npm run explore` / `npm run codify`) — live, uses the installed copilot login
 
 ## Status
 Current state and next task: see `docs/PLAN.md` (v1 progress table + milestone log).

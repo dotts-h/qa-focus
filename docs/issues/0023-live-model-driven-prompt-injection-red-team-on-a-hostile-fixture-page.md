@@ -1,7 +1,7 @@
 ---
 id: 0023
 title: Live model-driven prompt-injection red-team on a hostile fixture page
-status: open
+status: closed
 severity: high
 group: 0019
 depends_on: []
@@ -11,9 +11,19 @@ links:
   adr: 0001
   prs: []
   issues: [0009]
-  regression:
-assets: []
+  regression: R1
+assets: [0023-live-redteam-evidence.md]
 ---
+
+> **Done 2026-06-24** (credits unlocked). Live-verified with the real model (claude-sonnet-4.6) via
+> the installed `copilot` login. Evidence: [0023-live-redteam-evidence.md](assets/0023-live-redteam-evidence.md);
+> codified in `tests/live-redteam.spec.ts` (opt-in `REDTEAM_LIVE=1`); summarized in REGRESSIONS R1.
+>
+> **Acceptance:** [x] hostile fixture with catalogued payloads (`fixtures/hostile/`, pre-existing) ·
+> [x] live run recorded, every off-allowlist attempt denied by the leash (run D: `example.com` →
+> `BLOCKED`) · [x] findings logged (REGRESSIONS R1 + evidence asset) — **no leash gap found** ·
+> [x] documented as the live counterpart to `tests/injection.spec.ts`. Added a second live test that
+> proves the leash *actively denies* an operator-directed off-allowlist nav (not just model goodwill).
 
 ## Summary
 Complete the adversarial validation deferred from #0009. The **deterministic** injection layer is
