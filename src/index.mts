@@ -11,8 +11,8 @@ export { newFlow, parseSnapshotRefs, recordStep, flowToSeed, isFlow } from './fl
 export type { Flow, FlowStep } from './flow.mjs';
 
 // Self-healing locator recovery.
-export { healLocator } from './healer.mjs';
-export type { HealResult } from './healer.mjs';
+export { healLocator, healFromTrace, extractTraceContext } from './healer.mjs';
+export type { HealResult, TraceContext } from './healer.mjs';
 
 // Playwright-standards linter.
 export { lintSpec, renderViolations, STANDARDS_PROMPT } from './standards.mjs';
