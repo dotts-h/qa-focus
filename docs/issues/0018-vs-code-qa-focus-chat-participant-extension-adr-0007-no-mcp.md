@@ -37,12 +37,15 @@ the events→lines shape from `src/stream.mts`, #0013).
 - [x] Model path decided + documented: the participant drives the **git-installed qa-focus CLI**
       (which embeds the `@github/copilot-sdk` harness — the hard leash/tool-gating, ADR 0001/0002, is
       preserved). VS Code-native `vscode.lm` is a documented future option (ADR 0007 open question).
-- [x] Installable VS Code extension (`vscode/`, ESM, builds with `tsc` against `@types/vscode`);
-      `vscode/README.md` how-to (F5 dev host / `vsce package`). The pure parser is unit-tested
-      (`parseChatRequest`, 4 cases) in the root suite.
+- [x] Installable VS Code extension (`vscode/`); the `main` entry is a **CJS bundle** built with
+      **esbuild** (`out/extension.js`) — the proven VS Code extension format (the host loads `main`
+      via `require()`); `tsc --noEmit` typechecks it against `@types/vscode`. `vscode/README.md`
+      how-to (F5 dev host / `vsce package`). The pure parser is unit-tested (`parseChatRequest`,
+      6 cases incl. trailing-punctuation) in the root suite.
 
 ## Notes
 The Chat Participant API is GA and non-MCP (verified, `code.visualstudio.com/api/extension-guides/chat`).
-The extension is **ESM** (VS Code 1.95+; the dual CJS/ESM boundary made ESM the clean choice for both
-the editor and importing the pure parser from the root test suite). Electron/OpenFin surfaces inside
-the participant + the `vscode.lm` model path are follow-ups. **Closes epic #0015.**
+The extension ships as a **CJS esbuild bundle** (VS Code's extension host requires CJS at `main`; a
+native-ESM entry isn't reliable at engine `^1.95.0`). The pure parser lives in `request.mts` so the
+root ESM test suite imports it directly while esbuild bundles it into the CJS output. Electron/OpenFin
+surfaces inside the participant + the `vscode.lm` model path are follow-ups. **Closes epic #0015.**

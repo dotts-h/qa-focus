@@ -6,7 +6,7 @@ import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { parseChatRequest } from '../vscode/src/request.js';
+import { parseChatRequest } from '../vscode/src/request.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = () => JSON.parse(readFileSync(join(ROOT, 'vscode/package.json'), 'utf8'));
@@ -66,4 +66,19 @@ test('parseChatRequest finds the URL even when it is not first, and omits --goal
   expect(r.url).toBe('https://a.example');
   expect(r.goal).toBeUndefined();
   expect(r.argv).toEqual(['explore', '--url', 'https://a.example', '--quiet']); // no --goal
+});
+
+test('parseChatRequest does NOT swallow trailing punctuation into the URL (natural-language prompts)', () => {
+  // a quota-burning live failure if "https://shop.test," reaches the explorer as START_URL.
+  expect(parseChatRequest('explore https://shop.test, then checkout').url).toBe('https://shop.test');
+  expect(parseChatRequest('https://a.app.').url).toBe('https://a.app');
+  const paren = parseChatRequest('(https://a.app) add a task');
+  expect(paren.url).toBe('https://a.app'); // the ) is not part of the URL
+  // a path with legitimate internal punctuation is preserved (only TRAILING is trimmed)
+  expect(parseChatRequest('https://a.app/path?x=1&y=2 do it').url).toBe('https://a.app/path?x=1&y=2');
+});
+
+test('parseChatRequest builds the exact codify argv including --goal', () => {
+  const r = parseChatRequest('codify https://shop.test buy one item');
+  expect(r.argv).toEqual(['codify', '--url', 'https://shop.test', '--quiet', '--goal', 'buy one item']);
 });

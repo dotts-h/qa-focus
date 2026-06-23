@@ -6,7 +6,6 @@
   "publisher": "dotts-h",
   "license": "Apache-2.0",
   "repository": { "type": "git", "url": "https://github.com/dotts-h/qa-focus" },
-  "type": "module",
   "engines": { "vscode": "^1.95.0" },
   "categories": ["AI", "Testing", "Other"],
   "activationEvents": [],
@@ -23,13 +22,14 @@
     ]
   },
   "scripts": {
-    "build": "tsc -p ./",
-    "watch": "tsc -p ./ -w",
-    "vscode:prepublish": "tsc -p ./"
+    "typecheck": "tsc --noEmit -p ./",
+    "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --resolve-extensions=.mts,.ts,.mjs,.js --outfile=out/extension.js",
+    "vscode:prepublish": "npm run build"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
     "@types/vscode": "^1.95.0",
+    "esbuild": "^0.25.0",
     "typescript": "^6.0.3"
   }
 }

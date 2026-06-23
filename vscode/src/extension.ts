@@ -6,7 +6,7 @@
 // documented future option (ADR 0007). Pure parsing lives in ./request (unit-tested without VS Code).
 import * as vscode from 'vscode';
 import { spawn } from 'node:child_process';
-import { parseChatRequest } from './request.js';
+import { parseChatRequest } from './request.mjs';
 
 const HELP = [
   '**@qa-focus** — control-first agentic QA in Chat. I drive the qa-focus CLI (explore / codify) and',

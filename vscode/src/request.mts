@@ -14,7 +14,9 @@ export interface ChatRequest {
   error?: string;
 }
 
-const URL_RE = /\bhttps?:\/\/[^\s"']+/i;
+// Match a URL but DON'T swallow trailing sentence punctuation (a natural-language prompt like
+// "explore https://shop.test, then checkout" must not pass "https://shop.test," as the URL).
+const URL_RE = /\bhttps?:\/\/[^\s"']*[^\s"'.,;:!?)\]}]/i;
 
 /**
  * Parse a chat prompt (the text after `@qa-focus`) into a qa-focus command. Forms:
