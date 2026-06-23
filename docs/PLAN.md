@@ -25,7 +25,24 @@ typed package (ADR 0004). Two acceptance axes:
 - **Copilot CLI plugin** — `plugin.json` + git-marketplace install.
 - **GitHub Action** — run explore/codify/the authored gate in CI.
 
-Tracked as the **v1 epic** in `docs/issues/`.
+Tracked as the **v1 epic** (#0001) in `docs/issues/`.
+
+### v1 progress (2026-06-23)
+
+| issue | item | status |
+|------|------|--------|
+| #0006 | `qa-focus` CLI entrypoint (explore/codify/interactive; flags→env) | **scaffold shipped** (JS); publish gated on #0005 |
+| #0003 | web Chrome-channel coverage | **done** — suite green on `PW_CHANNEL=chrome`, documented |
+| #0011 | frameset flake | **done** — fixed + guarded (REGRESSIONS #3) |
+| #0005 | TypeScript migration + typed npm package | **next** — the foundation; unblocks publish, #0007, #0008 |
+| #0004 | Electron explorer in-process action path | open |
+| #0007 / #0008 | Copilot plugin / GitHub Action | open (gated on the npm publish) |
+| #0009 | live injection red-team | open (spends model credits) |
+| #0010 | trace-driven self-healing | open |
+| #0002 | **OpenFin** live-verify | **blocked on infra** — Mac mini (macOS RVM) or a Proxmox Windows VM; no Linux runtime |
+
+**Recommended next:** #0005 (TypeScript migration) — a focused, single-purpose pass. Decision points
+ahead: the OpenFin infra (Mac mini vs Windows VM) and whether to spend credits on the #0009 red-team.
 
 ## Milestones
 

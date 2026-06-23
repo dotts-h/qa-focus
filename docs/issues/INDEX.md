@@ -24,7 +24,7 @@ never a cycle).
 | [0003](0003-web-chrome-channel.md) | Web — verify gate/explorer on the branded Chrome channel | closed | medium | 0001 | — |
 | [0004](0004-electron-explorer-path.md) | Electron — explorer/codifier in-process action path | open | medium | 0001 | adr:0001 |
 | [0005](0005-typescript-core-npm.md) | Migrate core to TypeScript + publish typed npm package | open | high | 0001 | adr:0004 |
-| [0006](0006-standalone-cli-npm.md) | Standalone CLI npm package (qa-focus explore\|codify\|interactive) | open | high | 0001 | adr:0003; dep:0005 |
+| [0006](0006-standalone-cli-npm.md) | Standalone CLI npm package (qa-focus explore\|codify\|interactive) | in-progress | high | 0001 | adr:0003; dep:0005 |
 | [0007](0007-copilot-cli-plugin.md) | Copilot CLI plugin packaging (plugin.json + git marketplace) | open | medium | 0001 | adr:0003; dep:0006 |
 | [0008](0008-github-action.md) | GitHub Action adapter (explore/codify/gate in CI) | open | medium | 0001 | adr:0003; dep:0006 |
 | [0009](0009-live-injection-redteam.md) | Live adversarial prompt-injection red-team | open | medium | — | adr:0001 |
