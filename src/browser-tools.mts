@@ -64,7 +64,13 @@ export function makeBrowserTools(
       parameters: { type: 'object', required: ['url'], properties: { url: { type: 'string' } } },
       skipPermission: true,
       handler: async (a) => {
-        if (!allow(a.url)) return { textResultForLlm: `BLOCKED: ${a.url} is not on the allowlist (${allowlist.join(', ')}).`, resultType: 'denied' };
+        if (!allow(a.url)) {
+          // Record the blocked off-allowlist attempt as a denied step so a leash break is OBSERVABLE
+          // in the flow artifact (the red-team #0009 asserts on it), not silently dropped. The nav is
+          // refused regardless — this only makes the refusal visible; denied steps never seed the codifier.
+          recordStep(flow, { action: 'goto', url: a.url, denied: true });
+          return { textResultForLlm: `BLOCKED: ${a.url} is not on the allowlist (${allowlist.join(', ')}).`, resultType: 'denied' };
+        }
         const { pwcli } = await getCtx();
         const r = await pwcli.cmd('goto', a.url);
         step(`goto ${a.url}`);
