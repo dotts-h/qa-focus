@@ -4,27 +4,42 @@
 // One command, three subcommands, dispatching to the autonomous harnesses. The
 // harnesses read their configuration from an ENV contract (GOAL, START_URL, …); this
 // CLI maps friendly flags onto that contract and execs the right bin, inheriting stdio
-// so the live session streams straight through. Scaffolded in JS; ported under the
-// TypeScript migration (ADR 0004 / issue #0005).
+// so the live session streams straight through. Ported to TypeScript (ADR 0004 / issue #0005).
 import { spawn } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { readFileSync } from 'node:fs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+// Source runs as `.mts` (via the tsx loader); the published build runs the compiled `.mjs`
+// siblings on plain node. Derive both the sibling extension and the runner from how THIS
+// file was loaded, so the dispatch works in dev and in dist without a build-time switch.
+const SELF_EXT = import.meta.url.endsWith('.mts') ? '.mts' : '.mjs';
+// package.json sits one level up from the source bin/ but TWO levels up from the compiled
+// dist/bin/ (the published `files:[dist]` ships package.json at the package root) — so the
+// hop depends on which form is running, same as the sibling-script dispatch below.
+const PKG_JSON = SELF_EXT === '.mts' ? join(HERE, '../package.json') : join(HERE, '../../package.json');
 
 // subcommand → harness script
-const COMMANDS = { explore: 'explore.mjs', codify: 'codify.mjs', interactive: 'interactive.mjs' };
+const COMMANDS: Record<string, string> = { explore: `explore${SELF_EXT}`, codify: `codify${SELF_EXT}`, interactive: `interactive${SELF_EXT}` };
 
 // value flag → the env var the harnesses already read
-const VALUE_FLAGS = {
+const VALUE_FLAGS: Record<string, string> = {
   '--goal': 'GOAL', '--url': 'START_URL', '--spec': 'SPEC_NAME', '--flow': 'FLOW',
   '--channel': 'PW_CHANNEL', '--surface': 'SURFACE', '--allowlist': 'ALLOWLIST',
   '--steps': 'STEP_BUDGET', '--model': 'COPILOT_MODEL', '--cdp-url': 'CDP_URL',
   '--storage-state': 'STORAGE_STATE',
 };
 // boolean flag → env var set to '1'
-const BOOL_FLAGS = { '--headed': 'HEADED', '--force-open-shadow': 'FORCE_OPEN_SHADOW' };
+const BOOL_FLAGS: Record<string, string> = { '--headed': 'HEADED', '--force-open-shadow': 'FORCE_OPEN_SHADOW' };
+
+/** The result of parsing argv: the chosen command, env mapping, and any problems. */
+export interface ParsedArgs {
+  cmd: string;
+  env: Record<string, string>;
+  unknown: string[];
+  missing: string[];
+}
 
 /**
  * Parse argv (without node/script) into { cmd, env, unknown, missing }. Pure + exported so
@@ -32,11 +47,11 @@ const BOOL_FLAGS = { '--headed': 'HEADED', '--force-open-shadow': 'FORCE_OPEN_SH
  * `--flag=value`; a value flag with no value is reported in `missing` (never silently
  * swallowed into a wrong harness default).
  */
-export function parseArgs(argv) {
+export function parseArgs(argv: string[]): ParsedArgs {
   const [cmd, ...rest] = argv;
-  const env = {};
-  const unknown = [];
-  const missing = [];
+  const env: Record<string, string> = {};
+  const unknown: string[] = [];
+  const missing: string[] = [];
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     // --flag=value form
@@ -63,8 +78,8 @@ export function parseArgs(argv) {
   return { cmd, env, unknown, missing };
 }
 
-function version() {
-  try { return JSON.parse(readFileSync(join(HERE, '../package.json'), 'utf8')).version; }
+function version(): string {
+  try { return JSON.parse(readFileSync(PKG_JSON, 'utf8')).version; }
   catch { return '0.0.0'; }
 }
 
@@ -99,7 +114,7 @@ Examples:
   qa-focus codify  --flow artifacts/explore-flow.json --spec todo-add
 `;
 
-function main(argv) {
+function main(argv: string[]): number | null {
   if (argv.length === 0 || argv[0] === '-h' || argv[0] === '--help') { process.stdout.write(HELP); return 0; }
   if (argv[0] === '-v' || argv[0] === '--version') { process.stdout.write(version() + '\n'); return 0; }
   const { cmd, env, unknown, missing } = parseArgs(argv);
@@ -107,7 +122,10 @@ function main(argv) {
   if (!script) { process.stderr.write(`qa-focus: unknown command '${cmd}'\n\n` + HELP); return 2; }
   if (missing.length) { process.stderr.write(`qa-focus: missing value for: ${missing.join(' ')}\n\n` + HELP); return 2; }
   if (unknown.length) { process.stderr.write(`qa-focus: unknown option(s): ${unknown.join(' ')}\n\n` + HELP); return 2; }
-  const child = spawn(process.execPath, [join(HERE, script)], { stdio: 'inherit', env: { ...process.env, ...env } });
+  // A `.mts` self runs its siblings through the tsx loader; a compiled `.mjs` self runs them
+  // on plain node (no loader needed).
+  const pre = SELF_EXT === '.mts' ? ['--import', 'tsx'] : [];
+  const child = spawn(process.execPath, [...pre, join(HERE, script)], { stdio: 'inherit', env: { ...process.env, ...env } });
   child.on('exit', (code) => process.exit(code ?? 0));
   child.on('error', (e) => { process.stderr.write(`qa-focus: failed to start ${cmd}: ${e.message}\n`); process.exit(1); });
   return null; // async — process exits via the child handler

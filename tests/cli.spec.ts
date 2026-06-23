@@ -1,4 +1,4 @@
-// The unified CLI entrypoint (bin/qa-focus.mjs) — flag → harness-env mapping.
+// The unified CLI entrypoint (bin/qa-focus.mts) — flag → harness-env mapping.
 // Deterministic: parseArgs is pure; we never spawn a harness here.
 import { test, expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { parseArgs } from '../bin/qa-focus.mjs';
 
-const BIN = join(dirname(fileURLToPath(import.meta.url)), '../bin/qa-focus.mjs');
+// The entrypoint is TypeScript (.mts), so run it through the tsx loader rather than bare node.
+const BIN = join(dirname(fileURLToPath(import.meta.url)), '../bin/qa-focus.mts');
+const RUN = ['--import', 'tsx', BIN];
 
 test('explore flags map onto the env contract', () => {
   const { cmd, env, unknown } = parseArgs(['explore', '--goal', 'Add a task', '--url', 'http://localhost:3000', '--channel', 'chrome', '--headed']);
@@ -43,20 +45,20 @@ test('a value flag with no value is reported missing, never swallowed', () => {
 
 test('a missing value makes the CLI exit 2 (not a silent wrong-default run)', () => {
   let code = 0;
-  try { execFileSync(process.execPath, [BIN, 'explore', '--goal'], { stdio: 'pipe' }); }
+  try { execFileSync(process.execPath, [...RUN, 'explore', '--goal'], { stdio: 'pipe' }); }
   catch (e: any) { code = e.status; }
   expect(code).toBe(2);
 });
 
 test('--help exits 0 and prints usage; importing parseArgs has no side effects', () => {
-  const out = execFileSync(process.execPath, [BIN, '--help'], { encoding: 'utf8' });
+  const out = execFileSync(process.execPath, [...RUN, '--help'], { encoding: 'utf8' });
   expect(out).toMatch(/Usage: qa-focus <command>/);
   expect(out).toMatch(/explore[\s\S]*codify[\s\S]*interactive/);
 });
 
 test('an unknown command exits non-zero with usage', () => {
   let code = 0;
-  try { execFileSync(process.execPath, [BIN, 'frobnicate'], { stdio: 'pipe' }); }
+  try { execFileSync(process.execPath, [...RUN, 'frobnicate'], { stdio: 'pipe' }); }
   catch (e: any) { code = e.status; }
   expect(code).toBe(2);
 });

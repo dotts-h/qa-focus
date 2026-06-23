@@ -12,8 +12,28 @@
 // re-derives and gate-grades every locator; the flow only says WHAT to harden, not that it is
 // already correct.
 
+/** One durable, accessible step in a captured flow (NOT a snapshot ref). */
+export interface FlowStep {
+  action: 'goto' | 'click' | 'fill' | 'press' | 'expect' | string;
+  url?: string;
+  role?: string;
+  name?: string;
+  text?: string;
+  key?: string;
+  frame?: string;
+  submit?: boolean;
+}
+
+/** A captured flow — the explorer→codifier handoff artifact (artifacts/explore-flow.json). */
+export interface Flow {
+  goal: string;
+  startUrl: string;
+  surface: string;
+  steps: FlowStep[];
+}
+
 /** A fresh, empty flow record. */
-export function newFlow({ goal = '', startUrl = '', surface = 'web' } = {}) {
+export function newFlow({ goal = '', startUrl = '', surface = 'web' }: Partial<Omit<Flow, 'steps'>> = {}): Flow {
   return { goal, startUrl, surface, steps: [] };
 }
 
@@ -28,8 +48,8 @@ export function newFlow({ goal = '', startUrl = '', surface = 'web' } = {}) {
  * role = the first token after the list dash; name = the first quoted string (when present).
  * Lines without a [ref=…] (non-interactive nodes like `list "tasks"`) are skipped.
  */
-export function parseSnapshotRefs(text) {
-  const map = new Map();
+export function parseSnapshotRefs(text: string): Map<string, { role: string; name: string }> {
+  const map = new Map<string, { role: string; name: string }>();
   for (const line of String(text).split('\n')) {
     const ref = line.match(/\[ref=([A-Za-z0-9]+)\]/);
     if (!ref) continue;
@@ -42,11 +62,11 @@ export function parseSnapshotRefs(text) {
 
 /** Append a semantic step. No-op when `flow` is undefined, so the shared tools stay usable
  *  in contexts that don't record (codifier, extension). */
-export function recordStep(flow, step) {
+export function recordStep(flow: Flow | undefined, step: FlowStep): void {
   if (flow && Array.isArray(flow.steps)) flow.steps.push(step);
 }
 
-function describeStep(s) {
+function describeStep(s: FlowStep): string {
   switch (s.action) {
     case 'goto':   return `goto ${s.url}`;
     case 'click':  return `click the ${s.role || 'element'}${s.name ? ` "${s.name}"` : ''}`;
@@ -62,7 +82,7 @@ function describeStep(s) {
  * re-walk and harden. It is explicitly framed as a hint to VERIFY live (via propose_locator),
  * not a spec to trust — preserving the control-first / never-self-certified invariant.
  */
-export function flowToSeed(flow) {
+export function flowToSeed(flow: Flow): string {
   return [
     `A prior exploration discovered this flow${flow.goal ? ` (goal: ${flow.goal})` : ''}.`,
     flow.startUrl ? `Start URL: ${flow.startUrl}.` : '',
@@ -73,6 +93,6 @@ export function flowToSeed(flow) {
 }
 
 /** Shape guard for a value loaded from disk (FLOW=…). */
-export function isFlow(o) {
-  return !!o && typeof o === 'object' && Array.isArray(o.steps);
+export function isFlow(o: unknown): o is Flow {
+  return !!o && typeof o === 'object' && Array.isArray((o as Flow).steps);
 }

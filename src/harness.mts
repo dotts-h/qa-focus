@@ -9,21 +9,36 @@
 // This is the only module (besides the extension's joinSession) that imports the Copilot
 // SDK session primitives — the SDK seam stays narrow.
 import { CopilotClient, RuntimeConnection, ToolSet, defineTool, approveAll } from '@github/copilot-sdk';
+import type { CopilotClient as CopilotClientType, CopilotSession } from '@github/copilot-sdk';
+import type { ToolDescriptor } from './tool.mjs';
+
+/** Options for `createGatedSession` — the hard leash (cage + deny + budget). */
+export interface GatedSessionOptions {
+  /** path to the Copilot CLI (RuntimeConnection.forStdio). */
+  cli: string;
+  /** optional model override. */
+  model?: string;
+  /** gated tool descriptors (from makeBrowserTools/makeCodifyTools). */
+  tools: ToolDescriptor[];
+  /** circuit-breaker: deny tool calls past this count (undefined = no cap). */
+  stepBudget?: number;
+  /** onUserPromptSubmitted hook () => ({ additionalContext }) | undefined. */
+  recency?: (...args: any[]) => any;
+}
+
+/** The created session, its client, and the set of allowed tool names. */
+export interface GatedSession {
+  session: CopilotSession;
+  client: CopilotClientType;
+  toolNames: Set<string>;
+}
 
 /**
  * Create a session whose entire capability surface is the given gated tools.
- *
- * @param {object}   o
- * @param {string}   o.cli         path to the Copilot CLI (RuntimeConnection.forStdio).
- * @param {string}  [o.model]      optional model override.
- * @param {Array<{name,def}>} o.tools  gated tool descriptors (from makeBrowserTools/makeCodifyTools).
- * @param {number}  [o.stepBudget] circuit-breaker: deny tool calls past this count (undefined = no cap).
- * @param {Function}[o.recency]    onUserPromptSubmitted hook () => ({ additionalContext }) | undefined.
- * @returns {Promise<{ session, client, toolNames: Set<string> }>}
  */
-export async function createGatedSession({ cli, model, tools, stepBudget, recency }) {
+export async function createGatedSession({ cli, model, tools, stepBudget, recency }: GatedSessionOptions): Promise<GatedSession> {
   const defined = tools.map(({ name, def }) => defineTool(name, def));
-  const toolNames = new Set(defined.map((t) => t.name ?? t.definition?.name).filter(Boolean));
+  const toolNames = new Set(defined.map((t) => t.name).filter(Boolean));
   let steps = 0;
 
   const client = new CopilotClient({ connection: RuntimeConnection.forStdio({ path: cli }) });

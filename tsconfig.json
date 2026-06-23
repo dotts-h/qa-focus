@@ -1,0 +1,24 @@
+{
+  // Strict TS build for the portable core (ADR 0004 / issue #0005). Sources are `.mts`
+  // (NodeNext maps a `.mjs` import specifier → its `.mts` source, so existing imports and
+  // the Playwright/tsx loaders resolve unchanged); tsc emits ESM `.mjs` + `.d.mts` to dist/.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": ".",
+    "skipLibCheck": true,
+    "noEmitOnError": true,
+    "verbatimModuleSyntax": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.mts", "extension/**/*.mts", "bin/**/*.mts"],
+  "exclude": ["node_modules", "dist", "tests", "fixtures"]
+}

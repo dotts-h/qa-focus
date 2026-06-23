@@ -1,6 +1,6 @@
 // Shared browser-action tools — the model's capability surface for driving a page,
-// used by BOTH the standalone explorer (bin/explore.mjs) and the interactive Copilot
-// extension (extension/qa-focus/extension.mjs), so there is one implementation.
+// used by BOTH the standalone explorer (bin/explore.mts) and the interactive Copilot
+// extension (extension/qa-focus/extension.mts), so there is one implementation.
 //
 // Actions go through @playwright/cli (token-efficient [ref=eN] snapshots; ADR 0001).
 // Verification routes through the in-process locator gate so a vague match is rejected
@@ -16,15 +16,35 @@
 // the harness just returns its already-open page/pwcli).
 import { expect } from '@playwright/test';
 import { gradeLocator, buildLocator, render } from '../extension/qa-focus/ladder.mjs';
+import type { Proposal } from '../extension/qa-focus/ladder.mjs';
 import { parseSnapshotRefs, recordStep } from './flow.mjs';
+import type { Flow } from './flow.mjs';
+import type { AllowPredicate } from './allowlist.mjs';
+import type { Sink, Finding } from './evidence.mjs';
+import type { BrowserCtx } from './pwcli.mjs';
+import type { ToolDef, ToolDescriptor } from './tool.mjs';
 
-export function makeBrowserTools({ getCtx, allow = () => true, allowlist = [], sink, findings, saveState, statePath, flow }) {
-  const step = (s) => sink?.steps?.push(s);
-  const tool = (name, def) => ({ name, def });
+/** Inputs to the browser-tool factory. `getCtx` resolves the live page + CLI per call. */
+export interface BrowserToolsOptions {
+  getCtx: () => Promise<BrowserCtx>;
+  allow?: AllowPredicate;
+  allowlist?: string[];
+  sink?: Sink;
+  findings?: Finding[];
+  saveState?: (path: string) => Promise<unknown>;
+  statePath?: string;
+  flow?: Flow;
+}
+
+export function makeBrowserTools(
+  { getCtx, allow = () => true, allowlist = [], sink, findings, saveState, statePath, flow }: BrowserToolsOptions,
+): ToolDescriptor[] {
+  const step = (s: string): void => { sink?.steps?.push(s); };
+  const tool = (name: string, def: ToolDef): ToolDescriptor => ({ name, def });
   // The latest snapshot's ref→{role,name} map, so by-ref actions can be recorded as
   // DURABLE accessible steps in `flow` (the explorer→codifier handoff). Refs themselves
   // are ephemeral; the role+name behind them is what the codifier re-walks.
-  let refMap = new Map();
+  let refMap = new Map<string, { role: string; name: string }>();
 
   return [
     tool('browser_snapshot', {
@@ -98,7 +118,7 @@ export function makeBrowserTools({ getCtx, allow = () => true, allowlist = [], s
         const { page } = await getCtx();
         const patterns = [/^accept all/i, /^accept/i, /^i accept/i, /^agree/i, /^i agree/i, /^allow all/i, /^allow/i, /^got it/i, /^ok\b/i, /^continue/i, /consent/i];
         for (const re of patterns) {
-          for (const role of ['button', 'link']) {
+          for (const role of ['button', 'link'] as const) {
             const loc = page.getByRole(role, { name: re }).first();
             try {
               if ((await loc.count()) && (await loc.isVisible())) {
@@ -120,7 +140,7 @@ export function makeBrowserTools({ getCtx, allow = () => true, allowlist = [], s
       handler: async (a) => {
         if (!a.role && !a.text) return { textResultForLlm: 'provide either role (+name) or text', resultType: 'failure' };
         const { page } = await getCtx();
-        const proposal = a.role
+        const proposal: Proposal = a.role
           ? { tier: 'role', role: a.role, ...(a.name ? { name: a.name } : {}), ...(a.frame ? { frame: a.frame } : {}) }
           : { tier: 'text', name: a.text, ...(a.frame ? { frame: a.frame } : {}) };
         const grade = await gradeLocator(page, proposal);
@@ -148,8 +168,8 @@ export function makeBrowserTools({ getCtx, allow = () => true, allowlist = [], s
       parameters: { type: 'object', properties: {} },
       skipPermission: true,
       handler: async () => {
-        try { await saveState(statePath); step(`saved auth → ${statePath}`); return `saved login storageState to ${statePath}`; }
-        catch (e) { return { textResultForLlm: `save_auth failed: ${e?.message || e}`, resultType: 'failure' }; }
+        try { await saveState(statePath as string); step(`saved auth → ${statePath}`); return `saved login storageState to ${statePath}`; }
+        catch (e) { return { textResultForLlm: `save_auth failed: ${(e as Error)?.message || e}`, resultType: 'failure' }; }
       },
     })] : []),
     tool('report_finding', {
@@ -166,20 +186,20 @@ export function makeBrowserTools({ getCtx, allow = () => true, allowlist = [], s
       skipPermission: true,
       handler: async (a) => {
         const { page } = await getCtx();
-        let AxeBuilder;
-        try { ({ default: AxeBuilder } = await import('@axe-core/playwright')); }
+        let AxeBuilder: typeof import('@axe-core/playwright').AxeBuilder;
+        try { ({ AxeBuilder } = await import('@axe-core/playwright')); }
         catch { return { textResultForLlm: 'a11y audit unavailable: @axe-core/playwright is not installed', resultType: 'failure' }; }
         let builder = new AxeBuilder({ page });
         if (a?.region) builder = builder.include(a.region);
         let results;
         try { results = await builder.analyze(); }
-        catch (e) { return { textResultForLlm: `a11y audit failed: ${e?.message || e}`, resultType: 'failure' }; }
+        catch (e) { return { textResultForLlm: `a11y audit failed: ${(e as Error)?.message || e}`, resultType: 'failure' }; }
         // axe impact (critical/serious/moderate/minor) → our severity buckets.
-        const sevOf = { critical: 'high', serious: 'high', moderate: 'medium', minor: 'low' };
+        const sevOf: Record<string, Finding['severity']> = { critical: 'high', serious: 'high', moderate: 'medium', minor: 'low' };
         for (const v of results.violations) {
           const where = v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join('; ');
           findings?.push({
-            severity: sevOf[v.impact] || 'low',
+            severity: sevOf[v.impact ?? ''] || 'low',
             title: `[a11y/${v.id}] ${v.help}`,
             detail: `${v.description} — ${v.nodes.length} node(s): ${where}${v.nodes.length > 3 ? ' …' : ''} (${v.helpUrl})`,
             source: 'axe',

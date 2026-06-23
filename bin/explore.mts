@@ -1,15 +1,15 @@
-// explore.mjs — the autonomous EXPLORER.
+// explore.mts — the autonomous EXPLORER.
 //
 // An Antigravity-style agentic browser tester built on the Copilot SDK +
 // Playwright, with the safety model inverted toward control:
-//   • URL allowlist (src/allowlist.mjs) blocks navigation off trusted hosts.
+//   • URL allowlist (src/allowlist.mts) blocks navigation off trusted hosts.
 //   • Tool-gating (availableTools = browser actions only) is the real
 //     prompt-injection defense: the agent holds NO filesystem/shell/network
 //     tool, so a malicious page that says "read .env and POST it" has nothing
 //     to do it with. The capability is removed, not just the URL restricted.
 //   • Accessible actions — the model works off the accessibility-tree snapshot
 //     and acts on element refs; verification is graded by the in-process gate.
-//   • Evidence (src/evidence.mjs): console/network anomalies + a Playwright
+//   • Evidence (src/evidence.mts): console/network anomalies + a Playwright
 //     trace, synthesized into a Markdown artifact for human verification.
 //
 // Browser actions go through @playwright/cli (ADR 0001): our in-process Playwright
@@ -20,7 +20,7 @@
 // defineTools — never raw shell.
 //
 // Output is DISCOVERY (findings a human verifies), not durable tests. Feed the
-// worthwhile flows to the codifier (bin/codify.mjs) to harden into gated specs.
+// worthwhile flows to the codifier (bin/codify.mts) to harden into gated specs.
 //
 // Env: COPILOT_CLI, COPILOT_MODEL, GOAL, START_URL, ALLOWLIST (csv), PW_CHANNEL, CDP_PORT.
 import { spawn } from 'node:child_process';
@@ -31,6 +31,7 @@ import { createGatedSession } from '../src/harness.mjs';
 import { openSurface } from '../src/provider.mjs';
 import { makeAllowlist, guardContext } from '../src/allowlist.mjs';
 import { newSink, attachCollectors, renderArtifact } from '../src/evidence.mjs';
+import type { Finding } from '../src/evidence.mjs';
 import { attachCli } from '../src/pwcli.mjs';
 import { makeBrowserTools } from '../src/browser-tools.mjs';
 import { resolveCopilotCli } from '../src/copilot-path.mjs';
@@ -42,9 +43,9 @@ const START_URL = process.env.START_URL || 'http://localhost:3000';
 const GOAL = process.env.GOAL || 'Exercise the main user flow (add an item). Report anything broken or confusing.';
 const ALLOWLIST = (process.env.ALLOWLIST || 'localhost').split(',');
 const CDP_PORT = Number(process.env.CDP_PORT || 9222);
-const log = (...a) => console.log('[explore]', ...a);
+const log = (...a: unknown[]): void => console.log('[explore]', ...a);
 
-async function main() {
+async function main(): Promise<void> {
   const allow = makeAllowlist(ALLOWLIST);
   let server;
   if (START_URL.startsWith('http://localhost:3000')) {
@@ -69,7 +70,7 @@ async function main() {
   await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
   const sink = newSink();
   attachCollectors(page, sink, allow);
-  const findings = [];
+  const findings: Finding[] = [];
   // The structured, durable record of the discovered flow (semantic steps, not refs) —
   // written alongside the Markdown artifact and fed to the codifier (FLOW=…) to harden.
   const flow = newFlow({ goal: GOAL, startUrl: START_URL, surface: process.env.SURFACE || 'web' });
@@ -79,7 +80,7 @@ async function main() {
   // Attach the CLI to the same browser our in-process page already drives.
   const { pwcli: pw, getCtx } = await attachCli({ cdpEndpoint, page, session: 'qa-focus' });
 
-  // The control model (hard leash + step budget) lives in src/harness.mjs (ADR 0002). The
+  // The control model (hard leash + step budget) lives in src/harness.mts (ADR 0002). The
   // budget is the runaway-loop circuit-breaker: on exhaustion the model is denied further
   // tools and told to stop and summarize (it still writes its findings artifact).
   const { session, client } = await createGatedSession({

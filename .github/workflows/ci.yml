@@ -21,8 +21,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Strict TypeScript gate (ADR 0004): `lint` runs `tsc --noEmit`, so the core's
+      # typed seams compile-check here before anything else.
       - name: Lint
         run: npm run lint
+
+      # Emit the typed package (ESM JS + .d.mts) so a build break fails CI, not publish.
+      - name: Build (typed dist)
+        run: npm run build
 
       # Guard the CI/release workflow invariants (no feature-branch double-runs, etc.).
       - name: Check workflows

@@ -1,6 +1,6 @@
-// codify.mjs — the autonomous CODIFIER (the second half of the thesis).
+// codify.mts — the autonomous CODIFIER (the second half of the thesis).
 //
-// Where bin/explore.mjs DISCOVERS flows (throwaway evidence a human reads), this
+// Where bin/explore.mts DISCOVERS flows (throwaway evidence a human reads), this
 // HARDENS one named flow into a durable, standards-compliant Playwright spec under
 // tests/authored/, verified by the real `playwright test` gate. Same control model
 // as the explorer: the model holds ONLY gated tools (browser_* + propose_locator /
@@ -19,9 +19,11 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { createGatedSession } from '../src/harness.mjs';
 import { isFlow, flowToSeed } from '../src/flow.mjs';
+import type { Flow } from '../src/flow.mjs';
 import { openSurface } from '../src/provider.mjs';
 import { makeAllowlist, guardContext } from '../src/allowlist.mjs';
 import { newSink, attachCollectors } from '../src/evidence.mjs';
+import type { Finding } from '../src/evidence.mjs';
 import { attachCli } from '../src/pwcli.mjs';
 import { makeBrowserTools } from '../src/browser-tools.mjs';
 import { makeCodifyTools } from '../src/codify-tools.mjs';
@@ -34,16 +36,16 @@ const CLI = resolveCopilotCli();
 // M4 handoff: FLOW=path/to/explore-flow.json seeds the codifier with the explorer's
 // discovered recipe (steps + start URL + goal). It's a SEED to re-walk and gate-harden,
 // never trusted output — the gate still grades every locator live.
-const FLOW = process.env.FLOW ? JSON.parse(readFileSync(process.env.FLOW, 'utf8')) : null;
+const FLOW: Flow | null = process.env.FLOW ? JSON.parse(readFileSync(process.env.FLOW, 'utf8')) : null;
 if (process.env.FLOW && !isFlow(FLOW)) throw new Error(`FLOW file ${process.env.FLOW} is not a valid flow (no steps[])`);
 const START_URL = process.env.START_URL || FLOW?.startUrl || 'http://localhost:3000';
 const GOAL = process.env.GOAL || FLOW?.goal || 'Harden the main add-to-cart flow into a durable Playwright test.';
 const SPEC_NAME = process.env.SPEC_NAME || 'authored-flow';
 const ALLOWLIST = (process.env.ALLOWLIST || 'localhost').split(',');
 const CDP_PORT = Number(process.env.CDP_PORT || 9222);
-const log = (...a) => console.log('[codify]', ...a);
+const log = (...a: unknown[]): void => console.log('[codify]', ...a);
 
-async function main() {
+async function main(): Promise<void> {
   const allow = makeAllowlist(ALLOWLIST);
 
   const surface = await openSurface({
@@ -61,14 +63,14 @@ async function main() {
   if (surface.kind === 'web') await guardContext(context, allow);
   const sink = newSink();
   attachCollectors(page, sink, allow);
-  const findings = [];
-  const facts = [];
+  const findings: Finding[] = [];
+  const facts: string[] = [];
 
   if (allow(START_URL)) { await page.goto(START_URL, { waitUntil: 'domcontentloaded' }); sink.steps.push(`goto ${START_URL}`); }
 
   const { pwcli: pw, getCtx } = await attachCli({ cdpEndpoint, page, session: 'qa-focus-codify' });
 
-  // The control model (hard leash + step budget + recency) lives in src/harness.mjs (ADR 0002).
+  // The control model (hard leash + step budget + recency) lives in src/harness.mts (ADR 0002).
   const { session, client } = await createGatedSession({
     cli: CLI,
     model: process.env.COPILOT_MODEL,
@@ -106,7 +108,8 @@ async function main() {
     600_000, // the full walk→propose→write→run→fix loop needs more than 5 min on a real app
   );
 
-  const text = typeof res === 'string' ? res : res?.text ?? res?.content ?? '';
+  const r: any = res;
+  const text = typeof r === 'string' ? r : r?.text ?? r?.content ?? r?.data?.content ?? '';
   log('--- model summary ---');
   if (text) console.log(text);
   log('accepted locators:', facts.length);

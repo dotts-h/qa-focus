@@ -8,7 +8,7 @@
 import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
-export function resolveCopilotCli() {
+export function resolveCopilotCli(): string {
   if (process.env.COPILOT_CLI) return process.env.COPILOT_CLI;
   try {
     const p = execFileSync('sh', ['-c', 'command -v copilot'], { encoding: 'utf8' }).trim();

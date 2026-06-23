@@ -1,11 +1,11 @@
 // Shared CODIFIER tools — turn a discovered flow into a durable, standards-compliant
 // Playwright test, used by BOTH the interactive Copilot extension and the hard-leash
-// interactive REPL (bin/interactive.mjs), so there is one implementation.
+// interactive REPL (bin/interactive.mts), so there is one implementation.
 //
 //   • propose_locator — grade ONE locator against the CURRENT live page by the priority
-//     ladder (ladder.mjs); supports `scope` (accessible ancestor) and `frame` (iframe).
+//     ladder (ladder.mts); supports `scope` (accessible ancestor) and `frame` (iframe).
 //   • write_spec       — write tests/authored/<name>.spec.ts, REJECTED if it breaks the
-//     deterministic Playwright-standards linter (standards.mjs).
+//     deterministic Playwright-standards linter (standards.mts).
 //   • run_spec         — run the authored spec through `playwright test` (the real gate).
 //
 // `getCtx` is async () => { page } resolved per call (lazy browser). `facts` is a
@@ -13,14 +13,23 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFile } from 'node:child_process';
+import type { Page } from 'playwright';
 import { gradeLocator, render } from '../extension/qa-focus/ladder.mjs';
 import { lintSpec, renderViolations } from './standards.mjs';
 import { healLocator } from './healer.mjs';
+import type { ToolDef, ToolDescriptor, ToolResult } from './tool.mjs';
 
-const slug = (s) => String(s || 'flow').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'flow';
+const slug = (s: string): string => String(s || 'flow').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'flow';
 
-export function makeCodifyTools({ getCtx, root, facts = [] }) {
-  const tool = (name, def) => ({ name, def });
+/** Inputs to the codifier-tool factory. `getCtx` resolves the live page per call. */
+export interface CodifyToolsOptions {
+  getCtx: () => Promise<{ page: Page }>;
+  root: string;
+  facts?: string[];
+}
+
+export function makeCodifyTools({ getCtx, root, facts = [] }: CodifyToolsOptions): ToolDescriptor[] {
+  const tool = (name: string, def: ToolDef): ToolDescriptor => ({ name, def });
 
   return [
     tool('propose_locator', {
@@ -113,7 +122,7 @@ export function makeCodifyTools({ getCtx, root, facts = [] }) {
       parameters: { type: 'object', properties: { name: { type: 'string', description: 'spec name to run; omit to run all authored specs' } } },
       handler: async (a) => {
         const target = a?.name ? join('tests', 'authored', `${slug(a.name)}.spec.ts`) : join('tests', 'authored');
-        return await new Promise((resolve) => {
+        return await new Promise<ToolResult>((resolve) => {
           execFile('npx', ['playwright', 'test', target, '--reporter=line'], { cwd: root, maxBuffer: 16 << 20, env: { ...process.env, RUN_AUTHORED: '1' } }, (err, stdout, stderr) => {
             const out = `${stdout || ''}${stderr ? `\n${stderr}` : ''}`.trim().slice(-4000);
             resolve(err ? { textResultForLlm: `FAILED:\n${out}`, resultType: 'failure' } : `PASSED:\n${out}`);
