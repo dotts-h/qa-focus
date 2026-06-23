@@ -5,6 +5,10 @@ GitHub via `scripts/sync-github.sh` (requires `gh`). File new issues with
 `scripts/new-issue.sh "<title>" [--epic] [--group <id>] [--severity <s>] [--depends id,id]`
 — it appends the row here. Format reference: [TEMPLATE.md](TEMPLATE.md).
 
+> **Don't put `|` in a title.** `next-issue.sh` splits each table row on `|`, so a pipe in the
+> title column (even escaped `\|`) shifts every later column — the status is misread and the item's
+> `depends_on` blockers resolve wrong. Use `/` or `,` instead (e.g. `explore / codify / interactive`).
+
 Epics group children via the `group:` field; an epic may live in the Epics table
 or as an `Epic:`-titled row in the Issues table — pickers handle both. Hard
 ordering lives in each issue's `depends_on:` frontmatter (real blockers only,
@@ -25,7 +29,7 @@ never a cycle).
 | [0003](0003-web-chrome-channel.md) | Web — verify gate/explorer on the branded Chrome channel | closed | medium | 0001 | — |
 | [0004](0004-electron-explorer-path.md) | Electron — explorer/codifier in-process action path | closed | medium | 0001 | adr:0001,0005 |
 | [0005](0005-typescript-core-npm.md) | Migrate core to TypeScript + publish typed npm package | closed | high | 0001 | adr:0004 |
-| [0006](0006-standalone-cli-npm.md) | Standalone CLI (git-distributed: qa-focus explore\|codify\|interactive) | closed | high | 0001 | adr:0003,0006; dep:0005 |
+| [0006](0006-standalone-cli-npm.md) | Standalone CLI — git-distributed (explore / codify / interactive) | closed | high | 0001 | adr:0003,0006; dep:0005 |
 | [0007](0007-copilot-cli-plugin.md) | Copilot CLI plugin packaging (plugin.json + git marketplace) | open | medium | 0001 | adr:0003; dep:0006 |
 | [0008](0008-github-action.md) | GitHub Action adapter (explore/codify/gate in CI) | open | medium | 0001 | adr:0003; dep:0006 |
 | [0009](0009-live-injection-redteam.md) | Live adversarial prompt-injection red-team | closed | medium | — | adr:0001 |
