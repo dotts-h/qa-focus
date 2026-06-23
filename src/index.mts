@@ -22,6 +22,9 @@ export type { SnapshotStore } from './snapshot-store.mjs';
 export { lintSpec, renderViolations, STANDARDS_PROMPT } from './standards.mjs';
 export type { LintResult, Violation } from './standards.mjs';
 
+// Untrusted-spec execution guard — capability scan + scrubbed env for run_spec (ADR 0010).
+export { scanSpecCapabilities, safeSpecEnv } from './spec-guard.mjs';
+
 // URL allowlist + authored auth reuse.
 export { makeAllowlist, guardContext } from './allowlist.mjs';
 export type { AllowPredicate } from './allowlist.mjs';

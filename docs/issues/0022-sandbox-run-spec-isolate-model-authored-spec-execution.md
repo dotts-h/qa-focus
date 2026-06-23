@@ -1,14 +1,14 @@
 ---
 id: 0022
 title: Sandbox run_spec — isolate model-authored spec execution
-status: open
+status: closed
 severity: high
 group: 0019
 depends_on: []
 github: 41
 forgejo:
 links:
-  adr:
+  adr: 0010
   prs: []
   issues: []
   regression:
@@ -30,14 +30,25 @@ access), or the spec is statically rejected before execution.
 Actual: `run_spec` runs the spec with full Node privileges; the only defense is "untrusted until
 human-reviewed" + "run only in a dev/CI sandbox" (SECURITY.md RESIDUAL).
 
+## Resolution
+Chose **both** layers (ADR 0010): a static capability scan AND a scrubbed env — defense in depth,
+portable (pure Node, no container/infra). `src/spec-guard.mts`: `scanSpecCapabilities` rejects
+host-capability imports/escapes; `safeSpecEnv` strips host secrets from the execution env.
+
 ## Acceptance
-- [ ] `run_spec` executes authored specs under a constrained boundary (e.g. dedicated sandbox /
-      container / restricted env + scrubbed secrets), OR a static pre-exec check rejects specs that
-      import disallowed Node capabilities — decided in a short ADR.
-- [ ] A decision record (ADR) captures the chosen isolation approach and its trade-offs.
-- [ ] Deterministic test: an authored spec attempting host fs/network access is contained/rejected;
-      a legitimate browser-flow spec still runs green. No model, no quota.
-- [ ] SECURITY.md RESIDUAL updated to reflect the new posture; `make lint` + `make test` green.
+- [x] `run_spec` executes authored specs under a constrained boundary: a static pre-exec capability
+      check rejects disallowed Node imports/escapes (at `write_spec`/`write_pom` AND a re-scan of all
+      `tests/authored/*.ts` at `run_spec`), and the spec runs under a **scrubbed env** (`safeSpecEnv`,
+      no host secrets).
+- [x] ADR 0010 captures the chosen isolation approach (scan + scrubbed env) and its trade-offs
+      (static, not an OS sandbox — accepted residual; container = future hardening).
+- [x] Deterministic tests: `tests/spec-guard.spec.ts` (14) — fs/net/child_process/eval/Function/
+      require/process.binding/dynamic-import all blocked, clean spec + auth fixture allowed, secrets
+      dropped from `safeSpecEnv`; `tests/codify-depth.spec.ts` (+2) — `write_spec` rejects a
+      capability-violating spec (never writes it) and `run_spec` blocks a planted file before running.
+      A real authored spec still passes under a fully scrubbed `env -i`. No model, no quota.
+- [x] SECURITY.md RESIDUAL updated (now "HARDENED" with the accepted residual); `npm run lint` +
+      `PW_CHANNEL=chromium npm test` green (177 passed).
 
 ## Notes
 Seam: `src/codify-tools.mjs` (`run_spec`) + a new isolation wrapper; `src/standards.mjs` if a static

@@ -22,12 +22,18 @@ defenses, and the residual risks, in priority order:
   (never `shell:true`/string interpolation), so page or model text is always a value, never a command.
 - **`write_spec` file writes are confined.** The spec name is `slug()`-sanitized (`[^a-z0-9]→-`), so
   no path traversal — writes stay under `tests/authored/`.
-- **RESIDUAL — the codifier executes model-authored code.** `write_spec` writes a `.spec.ts` that
-  `run_spec` then runs via `playwright test` (full Node). The standards linter blocks flaky patterns,
-  **not** arbitrary `require`/fs/network in the spec. So a prompt-injected codifier could author a
-  spec that does harm when run. Mitigation: authored specs are **untrusted until human-reviewed**
-  (the "never self-certified" principle); run the codifier only in a dev/CI sandbox. A future
-  hardening is to sandbox `run_spec`.
+- **HARDENED — the codifier executes model-authored code (#0022, ADR 0010).** `write_spec` writes a
+  `.spec.ts` that `run_spec` runs via `playwright test` (full Node). Two defense-in-depth layers now
+  guard that boundary (`src/spec-guard.mts`): (1) a **capability scan** (`scanSpecCapabilities`)
+  rejects source that imports a dangerous Node core module (`fs`/`child_process`/`net`/…) or uses
+  `eval`/`Function`/`require`/`process.binding` — enforced at `write_spec`/`write_pom` AND re-scanned
+  across `tests/authored/*.ts` at `run_spec` (so a file placed out-of-band still can't run); (2)
+  `run_spec` executes under a **scrubbed environment** (`safeSpecEnv` — a minimal allowlist, no host
+  secrets), closing the secret-exfil leg even if the scan is bypassed. **Accepted residual:** the scan
+  is static, not an OS sandbox — a determined obfuscation could still construct a banned reference, so
+  authored specs remain **untrusted until human-reviewed** (the "never self-certified" principle) and
+  OS-level isolation (a container) stays the documented future hardening if a stronger guarantee is
+  needed.
 - **RESIDUAL — the Copilot extension is a SOFT leash.** An extension cannot remove copilot's built-in
   fs/shell tools, so the gate is bypassable there. Use `bin/interactive.mjs` (hard leash) when
   enforcement matters. — documented in [ARCHITECTURE.md](ARCHITECTURE.md).

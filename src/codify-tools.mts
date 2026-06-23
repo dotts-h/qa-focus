@@ -10,12 +10,13 @@
 //
 // `getCtx` is async () => { page } resolved per call (lazy browser). `facts` is a
 // caller-owned array of accepted-locator facts (re-injected each turn for recency).
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import type { Page } from 'playwright';
 import { gradeLocator, render } from '../extension/qa-focus/ladder.mjs';
 import { lintSpec, renderViolations } from './standards.mjs';
+import { scanSpecCapabilities, safeSpecEnv } from './spec-guard.mjs';
 import { healLocator } from './healer.mjs';
 import type { ToolDef, ToolDescriptor, ToolResult } from './tool.mjs';
 
@@ -70,6 +71,8 @@ export function makeCodifyTools({ getCtx, root, facts = [] }: CodifyToolsOptions
       handler: async (a) => {
         const { ok, violations } = lintSpec(a.code);
         if (!ok) return { textResultForLlm: `REJECTED — spec violates Playwright standards:\n${renderViolations(violations.filter((v) => !v.warn))}\nFix and resubmit.`, resultType: 'failure' };
+        const cap = scanSpecCapabilities(a.code); // #0022, ADR 0010 — no host fs/process/network/eval
+        if (!cap.ok) return { textResultForLlm: `REJECTED — spec accesses host capabilities (not allowed in an authored browser test):\n${renderViolations(cap.violations)}\nRemove the import/escape and resubmit.`, resultType: 'denied' };
         const dir = join(root, 'tests', 'authored');
         mkdirSync(dir, { recursive: true });
         const file = join(dir, `${slug(a.name)}.spec.ts`);
@@ -108,6 +111,8 @@ export function makeCodifyTools({ getCtx, root, facts = [] }: CodifyToolsOptions
       handler: async (a) => {
         const { ok, violations } = lintSpec(a.code);
         if (!ok) return { textResultForLlm: `REJECTED — page object violates Playwright standards:\n${renderViolations(violations.filter((v) => !v.warn))}\nFix and resubmit.`, resultType: 'failure' };
+        const cap = scanSpecCapabilities(a.code); // #0022, ADR 0010 — no host fs/process/network/eval
+        if (!cap.ok) return { textResultForLlm: `REJECTED — page object accesses host capabilities (not allowed in an authored browser test):\n${renderViolations(cap.violations)}\nRemove the import/escape and resubmit.`, resultType: 'denied' };
         const dir = join(root, 'tests', 'authored');
         mkdirSync(dir, { recursive: true });
         const name = slug(a.name);
@@ -121,9 +126,19 @@ export function makeCodifyTools({ getCtx, root, facts = [] }: CodifyToolsOptions
       description: 'Run an authored spec (or all of tests/authored) through Playwright — the deterministic gate. Returns pass/fail and output.',
       parameters: { type: 'object', properties: { name: { type: 'string', description: 'spec name to run; omit to run all authored specs' } } },
       handler: async (a) => {
+        // Defense in depth (#0022, ADR 0010): re-scan EVERY authored .ts (specs + imported POMs/
+        // fixtures) for host-capability access before executing — catches anything not written via
+        // write_spec/write_pom — and run under a scrubbed env (safeSpecEnv) with no host secrets.
+        const authoredDir = join(root, 'tests', 'authored');
+        let files: string[] = [];
+        try { files = readdirSync(authoredDir).filter((f) => f.endsWith('.ts')); } catch { /* none authored yet */ }
+        for (const f of files) {
+          const cap = scanSpecCapabilities(readFileSync(join(authoredDir, f), 'utf8'));
+          if (!cap.ok) return { textResultForLlm: `BLOCKED before run — ${f} accesses host capabilities:\n${renderViolations(cap.violations)}\nAuthored specs must not touch the filesystem/process/network. Remove it and re-run.`, resultType: 'denied' };
+        }
         const target = a?.name ? join('tests', 'authored', `${slug(a.name)}.spec.ts`) : join('tests', 'authored');
         return await new Promise<ToolResult>((resolve) => {
-          execFile('npx', ['playwright', 'test', target, '--reporter=line'], { cwd: root, maxBuffer: 16 << 20, env: { ...process.env, RUN_AUTHORED: '1' } }, (err, stdout, stderr) => {
+          execFile('npx', ['playwright', 'test', target, '--reporter=line'], { cwd: root, maxBuffer: 16 << 20, env: safeSpecEnv() }, (err, stdout, stderr) => {
             const out = `${stdout || ''}${stderr ? `\n${stderr}` : ''}`.trim().slice(-4000);
             resolve(err ? { textResultForLlm: `FAILED:\n${out}`, resultType: 'failure' } : `PASSED:\n${out}`);
           });
