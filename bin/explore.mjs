@@ -27,7 +27,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { CopilotClient, RuntimeConnection, ToolSet, defineTool, approveAll } from '@github/copilot-sdk';
+import { createGatedSession } from '../src/harness.mjs';
 import { openSurface } from '../src/provider.mjs';
 import { makeAllowlist, guardContext } from '../src/allowlist.mjs';
 import { newSink, attachCollectors, renderArtifact } from '../src/evidence.mjs';
@@ -78,29 +78,15 @@ async function main() {
   if (!att.ok) throw new Error(`playwright-cli failed to attach over CDP: ${att.out}`);
 
   const getCtx = async () => ({ page, pwcli: pw });
-  const tools = makeBrowserTools({ getCtx, allow, allowlist: ALLOWLIST, sink, findings, saveState: surface.saveState, statePath: process.env.STORAGE_STATE })
-    .map(({ name, def }) => defineTool(name, def));
-  const names = tools.map((t) => t.name ?? t.definition?.name).filter(Boolean);
 
-  // Circuit breaker: the explorer is autonomous and token-heavy — cap tool calls so a
-  // runaway loop can't burn quota indefinitely. On exhaustion the model is told to stop
-  // and summarize (it still gets to write its findings artifact).
-  const STEP_BUDGET = Number(process.env.STEP_BUDGET || 60);
-  let steps = 0;
-
-  const client = new CopilotClient({ connection: RuntimeConnection.forStdio({ path: CLI }) });
-  const session = await client.createSession({
-    ...(process.env.COPILOT_MODEL ? { model: process.env.COPILOT_MODEL } : {}),
-    tools,
-    availableTools: new ToolSet().addCustom('*'), // leash = injection defense: no fs/shell/network tools exist
-    onPermissionRequest: approveAll,
-    hooks: {
-      onPreToolUse: async ({ toolName }) => {
-        if (!names.includes(toolName)) return { permissionDecision: 'deny', permissionDecisionReason: `not an explore tool: ${toolName}` };
-        if (++steps > STEP_BUDGET) return { permissionDecision: 'deny', permissionDecisionReason: `step budget (${STEP_BUDGET}) exhausted — stop exploring and report your findings now` };
-        return undefined;
-      },
-    },
+  // The control model (hard leash + step budget) lives in src/harness.mjs (ADR 0002). The
+  // budget is the runaway-loop circuit-breaker: on exhaustion the model is denied further
+  // tools and told to stop and summarize (it still writes its findings artifact).
+  const { session, client } = await createGatedSession({
+    cli: CLI,
+    model: process.env.COPILOT_MODEL,
+    tools: makeBrowserTools({ getCtx, allow, allowlist: ALLOWLIST, sink, findings, saveState: surface.saveState, statePath: process.env.STORAGE_STATE }),
+    stepBudget: Number(process.env.STEP_BUDGET || 60),
   });
 
   log('goal:', GOAL);

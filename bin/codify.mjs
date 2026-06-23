@@ -16,7 +16,7 @@
 //      PW_CHANNEL, CDP_PORT, STEP_BUDGET, HEADED, SURFACE, CDP_URL, FORCE_OPEN_SHADOW.
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { CopilotClient, RuntimeConnection, ToolSet, defineTool, approveAll } from '@github/copilot-sdk';
+import { createGatedSession } from '../src/harness.mjs';
 import { openSurface } from '../src/provider.mjs';
 import { makeAllowlist, guardContext } from '../src/allowlist.mjs';
 import { newSink, attachCollectors } from '../src/evidence.mjs';
@@ -64,32 +64,18 @@ async function main() {
   if (!att.ok) throw new Error(`playwright-cli failed to attach over CDP: ${att.out}`);
   const getCtx = async () => ({ page, pwcli: pw });
 
-  const tools = [
-    ...makeBrowserTools({ getCtx, allow, allowlist: ALLOWLIST, sink, findings, saveState: surface.saveState, statePath: process.env.STORAGE_STATE }),
-    ...makeCodifyTools({ getCtx, root: ROOT, facts }),
-  ].map(({ name, def }) => defineTool(name, def));
-  const names = tools.map((t) => t.name ?? t.definition?.name).filter(Boolean);
-
-  // Circuit breaker — codifying is multi-turn and token-heavy; cap tool calls.
-  const STEP_BUDGET = Number(process.env.STEP_BUDGET || 80);
-  let steps = 0;
-
-  const client = new CopilotClient({ connection: RuntimeConnection.forStdio({ path: CLI }) });
-  const session = await client.createSession({
-    ...(process.env.COPILOT_MODEL ? { model: process.env.COPILOT_MODEL } : {}),
-    tools,
-    availableTools: new ToolSet().addCustom('*'), // HARD leash: only our tools exist
-    onPermissionRequest: approveAll,
-    hooks: {
-      onUserPromptSubmitted: async () => {
-        const extra = facts.length ? `\nGATE-ACCEPTED LOCATORS THIS SESSION (reuse verbatim in the spec):\n- ${facts.slice(-16).join('\n- ')}` : '';
-        return { additionalContext: STANDARDS_PROMPT + extra };
-      },
-      onPreToolUse: async ({ toolName }) => {
-        if (!names.includes(toolName)) return { permissionDecision: 'deny', permissionDecisionReason: `not a qa-focus tool: ${toolName}` };
-        if (++steps > STEP_BUDGET) return { permissionDecision: 'deny', permissionDecisionReason: `step budget (${STEP_BUDGET}) exhausted — finish the spec and run_spec now` };
-        return undefined;
-      },
+  // The control model (hard leash + step budget + recency) lives in src/harness.mjs (ADR 0002).
+  const { session, client } = await createGatedSession({
+    cli: CLI,
+    model: process.env.COPILOT_MODEL,
+    tools: [
+      ...makeBrowserTools({ getCtx, allow, allowlist: ALLOWLIST, sink, findings, saveState: surface.saveState, statePath: process.env.STORAGE_STATE }),
+      ...makeCodifyTools({ getCtx, root: ROOT, facts }),
+    ],
+    stepBudget: Number(process.env.STEP_BUDGET || 80), // codifying is multi-turn and token-heavy
+    recency: async () => {
+      const extra = facts.length ? `\nGATE-ACCEPTED LOCATORS THIS SESSION (reuse verbatim in the spec):\n- ${facts.slice(-16).join('\n- ')}` : '';
+      return { additionalContext: STANDARDS_PROMPT + extra };
     },
   });
 

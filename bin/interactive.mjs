@@ -20,7 +20,7 @@ import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { CopilotClient, RuntimeConnection, ToolSet, defineTool, approveAll } from '@github/copilot-sdk';
+import { createGatedSession } from '../src/harness.mjs';
 import { openSurface } from '../src/provider.mjs';
 import { makeAllowlist, guardContext } from '../src/allowlist.mjs';
 import { newSink, attachCollectors, renderArtifact } from '../src/evidence.mjs';
@@ -72,25 +72,18 @@ async function main() {
   if (!att.ok) throw new Error(`playwright-cli failed to attach over CDP: ${att.out}`);
   const getCtx = async () => ({ page, pwcli: pw });
 
-  const tools = [
-    ...makeBrowserTools({ getCtx, allow, allowlist: ALLOWLIST, sink, findings, saveState: surface.saveState, statePath: process.env.STORAGE_STATE }),
-    ...makeCodifyTools({ getCtx, root: ROOT, facts }),
-  ].map(({ name, def }) => defineTool(name, def));
-  const names = tools.map((t) => t.name ?? t.definition?.name).filter(Boolean);
-
-  const client = new CopilotClient({ connection: RuntimeConnection.forStdio({ path: CLI }) });
-  const session = await client.createSession({
-    ...(process.env.COPILOT_MODEL ? { model: process.env.COPILOT_MODEL } : {}),
-    tools,
-    availableTools: new ToolSet().addCustom('*'), // HARD leash: only our tools exist
-    onPermissionRequest: approveAll,
-    hooks: {
-      onUserPromptSubmitted: async () => {
-        const extra = facts.length ? `\nESTABLISHED THIS SESSION:\n- ${facts.slice(-12).join('\n- ')}` : '';
-        return { additionalContext: STANDARDS_PROMPT + extra };
-      },
-      onPreToolUse: async ({ toolName }) =>
-        names.includes(toolName) ? undefined : { permissionDecision: 'deny', permissionDecisionReason: `not a qa-focus tool: ${toolName}` },
+  // The control model (hard leash + recency) lives in src/harness.mjs (ADR 0002). No step
+  // budget here — turns are human-paced over stdin, so the human is the circuit-breaker.
+  const { session, client } = await createGatedSession({
+    cli: CLI,
+    model: process.env.COPILOT_MODEL,
+    tools: [
+      ...makeBrowserTools({ getCtx, allow, allowlist: ALLOWLIST, sink, findings, saveState: surface.saveState, statePath: process.env.STORAGE_STATE }),
+      ...makeCodifyTools({ getCtx, root: ROOT, facts }),
+    ],
+    recency: async () => {
+      const extra = facts.length ? `\nESTABLISHED THIS SESSION:\n- ${facts.slice(-12).join('\n- ')}` : '';
+      return { additionalContext: STANDARDS_PROMPT + extra };
     },
   });
 

@@ -2,7 +2,7 @@
 
 ## The two-phase model: explorer → codifier
 
-| | Explorer (`bin/explore.mjs`) | Codifier (`bin/author.mjs`, `extension/`) |
+| | Explorer (`bin/explore.mjs`) | Codifier (`bin/codify.mjs`, `extension/`) |
 |---|---|---|
 | Goal | Discover flows, bugs, evidence | Produce durable, standards-compliant tests |
 | Output | Findings + artifact (human-verified) | Validated Playwright locators/specs |
@@ -20,8 +20,14 @@ across all three runners:
 | Entry point | Leash | Use |
 |---|---|---|
 | `bin/explore.mjs` | **HARD** (`availableTools` caged + `onPreToolUse` deny + `STEP_BUDGET`) | autonomous one-shot discovery |
+| `bin/codify.mjs` | **HARD** (same cage + `STEP_BUDGET`) | autonomous one-shot codification (flow → durable spec) |
 | `bin/interactive.mjs` | **HARD** (same cage), turn-by-turn over stdin | interactive drive → explore → harden **with enforcement** |
 | `extension/qa-focus/` (Copilot extension) | **SOFT** (human-approval; cannot remove copilot's built-in tools) | interactive inside your own `copilot` session |
+
+The HARD leash is defined **once** in `src/harness.mjs` (`createGatedSession`, ADR 0002) — the
+single home for the injection-defense control model — and is the only `src/` import site of the
+Copilot SDK session primitives. `bin/author.mjs` is the original proof harness, now superseded by
+`bin/codify.mjs` and kept only as a reference.
 
 The hard-leash matters: in a Copilot *extension* session the model retains shell/fs tools and was
 observed **routing around the gate** (writing ad-hoc scripts). The enforcing path (`interactive.mjs`)
