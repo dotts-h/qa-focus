@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Nested outer</title></head>
+<body>
+  <h1>Outer document</h1>
+  <!-- Two-level iframe nesting: Outer → Inner → the target form (inner.html). Reaching the
+       button needs page.frameLocator('Outer').frameLocator('Inner'). -->
+  <iframe title="Outer" src="/nested-mid.html" width="360" height="200"></iframe>
+</body></html>

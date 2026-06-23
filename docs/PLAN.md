@@ -135,11 +135,14 @@ ahead: the OpenFin infra (Mac mini vs Windows VM) and whether to spend credits o
 ## Production hardening (2026-06-22)
 
 Driven by a real interactive session log + off-pool research (agy/Gemini). See `docs/STANDARDS.md`.
-- **Complex surfaces** — the gate (`ladder.mjs`) now grades inside **iframes** (`frame` →
-  `frameLocator`) and across **open shadow DOM** (auto-pierced); **closed** shadow roots reachable
-  via `FORCE_OPEN_SHADOW=1` (rewrites `attachShadow` in `provider.mjs`). Tests: `ladder-complex.spec.ts`
-  (6) + live `live-complex.spec.ts` (MDN web component + the-internet iframe). Limit: legacy
-  `<frameset>` not surfaced inline; nested iframes are single-level today.
+- **Complex surfaces** — the gate (`ladder.mjs`) grades inside **iframes** — including **nested**
+  ones: `frame` accepts an outer→inner selector chain rendered as
+  `frameLocator(outer).frameLocator(inner).…` (#0021) — and across **open shadow DOM** (auto-pierced);
+  **closed** shadow roots reachable via `FORCE_OPEN_SHADOW=1` (rewrites `attachShadow` in
+  `provider.mjs`). Legacy `<frameset>/<frame>` degrades to the by-name Frame API (`page.frame({name})`
+  pierces the whole tree, so a nested frame is reached by its innermost name). Tests:
+  `ladder-complex.spec.ts` (9, incl. 2-level nesting + frameset) + live `live-complex.spec.ts` (MDN
+  web component + the-internet iframe).
 - **Standards enforced as code** — `src/standards.mjs` linter rejects authored specs with
   `waitForTimeout`/`networkidle`/`page.$`/XPath; `STANDARDS_PROMPT` (frames/shadow/Angular/CDK/virtual-scroll)
   re-injected each turn. Tests: `standards.spec.ts` (7).

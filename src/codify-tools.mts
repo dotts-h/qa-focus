@@ -48,7 +48,7 @@ export function makeCodifyTools({ getCtx, root, facts = [] }: CodifyToolsOptions
           tier: { enum: ['role', 'label', 'placeholder', 'text', 'altText', 'title', 'testid', 'css', 'xpath'] },
           intent: { type: 'string' }, role: { type: 'string' }, name: { type: 'string' },
           scope: { type: 'object', properties: { tier: { type: 'string' }, role: { type: 'string' }, name: { type: 'string' }, expression: { type: 'string' }, exact: { type: 'boolean' } } },
-          frame: { type: 'string', description: 'CSS selector for the containing <iframe>, when the element lives inside one' },
+          frame: { type: ['string', 'array'], items: { type: 'string' }, description: 'CSS selector for the containing <iframe>, when the element lives inside one. For NESTED iframes pass an outer→inner array of selectors → rendered as page.frameLocator(outer).frameLocator(inner).…' },
           expression: { type: 'string' }, exact: { type: 'boolean' }, reason: { type: 'string' },
         },
       },

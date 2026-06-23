@@ -21,7 +21,7 @@ export interface FlowStep {
   name?: string;
   text?: string;
   key?: string;
-  frame?: string;
+  frame?: string | string[]; // a single <iframe> selector, or an outer→inner chain for nested frames
   submit?: boolean;
   /** the action was REFUSED by the leash (e.g. an off-allowlist goto). Recorded as evidence — a
    * blocked attempt the red-team (#0009) can assert on — but excluded from the codifier seed. */

@@ -35,7 +35,8 @@ type LocatorRoot = Pick<
 /** How `gradeLocator` reached an in-frame element (stamped on the proposal for render()). */
 export interface FrameResolution {
   mode: 'frameLocator' | 'frame';
-  selector?: string;
+  /** the frameLocator chain, outer→inner (modern <iframe>; one entry for a single level). */
+  selectors?: string[];
   name?: string;
   degraded?: boolean;
 }
@@ -51,7 +52,9 @@ export interface Proposal {
   reason?: string;
   intent?: string;
   scope?: Proposal;
-  frame?: string;
+  /** A CSS selector for the containing <iframe>, or — for NESTED iframes — an outer→inner chain
+   *  of selectors (rendered as page.frameLocator(outer).frameLocator(inner).…). */
+  frame?: string | string[];
   frameResolution?: FrameResolution | null;
 }
 
@@ -74,6 +77,12 @@ export type GradeResult =
       frameResolution: FrameResolution | null;
       debt: DebtRecord | null;
     };
+
+/** Normalize a proposal's `frame` (a single selector, an outer→inner chain, or absent) to a
+ *  clean selector array — empties dropped. `[]` means "not in a frame" (search the page). */
+export function frameChain(frame?: string | string[]): string[] {
+  return (Array.isArray(frame) ? frame : frame == null ? [] : [frame]).filter((s) => s.trim() !== '');
+}
 
 /** Build a Playwright Locator from a proposal, rooted at `root` (a Page or Locator). */
 export function buildLocator(root: LocatorRoot, p: Proposal): Locator {
@@ -114,15 +123,17 @@ export function render(p: Proposal): string {
       default:            return `/* ${x.tier} */`;
     }
   };
-  // Frame base mirrors how gradeLocator resolved the root: a legacy <frame> (degraded)
-  // renders as the Frame API; everything else (and the un-graded standalone call) as a frameLocator.
+  // Frame base mirrors how gradeLocator resolved the root: a legacy <frame> (degraded) renders as
+  // the by-name Frame API; a modern <iframe> (or the un-graded standalone call) chains frameLocator
+  // for each level, outer→inner.
   const esc = (s: unknown): string => String(s).replace(/'/g, "\\'");
   const fr = p.frameResolution;
-  const base = !p.frame
+  const frames = frameChain(p.frame);
+  const base = frames.length === 0
     ? 'page'
     : fr?.mode === 'frame'
       ? `page.frame({ name: '${esc(fr.name)}' })`
-      : `page.frameLocator('${esc(p.frame)}')`;
+      : 'page' + frames.map((s) => `.frameLocator('${esc(s)}')`).join('');
   return p.scope ? `${base}.${one(p.scope)}.${one({ ...p, scope: undefined })}` : `${base}.${one(p)}`;
 }
 
@@ -226,35 +237,46 @@ async function resolvesSame(locator: Locator, targetHandle: ElementHandle<Elemen
   return await locator.evaluate((el, target) => el === target, targetHandle);
 }
 
+// A FrameLocator: locator builders + the ability to descend into a NESTED frame (so the gate can
+// chain frameLocator(outer).frameLocator(inner) for multi-level iframes).
+type FrameLocatorLike = LocatorRoot & {
+  locator: (selector: string) => Locator;
+  frameLocator: (selector: string) => FrameLocatorLike;
+};
+
 // The Page surface the gate needs: the locator builders plus frame resolution.
 type GradePage = LocatorRoot & {
-  frameLocator: (selector: string) => { locator: (selector: string) => Locator };
+  frameLocator: (selector: string) => FrameLocatorLike;
   frame: (selector: { name: string }) => LocatorRoot | null;
 };
 
 /**
  * Resolve the search ROOT for an in-frame proposal, with graceful degradation that
  * mirrors the locator ladder (prefer the accessible/modern handle; degrade and LOG).
- * Preferred: `page.frameLocator(sel)` — the modern API, but `<iframe>` only.
- * If that cannot reach the frame (a legacy `<frameset>/<frame>`, which frameLocator
- * does not support), DEGRADE to the lower-level Frame API resolved BY NAME
- * (`page.frame({ name })` pierces the whole frame tree, unlike a page CSS selector) —
+ * Preferred: `page.frameLocator(sel)` chained outer→inner for NESTED iframes — the modern
+ * API, but `<iframe>` only. If that cannot reach the frame (a legacy `<frameset>/<frame>`,
+ * which frameLocator does not support), DEGRADE to the lower-level Frame API resolved BY
+ * NAME (`page.frame({ name })` pierces the whole frame tree, unlike a page CSS selector) —
  * recorded as debt, exactly like CSS at the bottom of the ladder. A Page, a FrameLocator
  * and a Frame all expose the same locator builders, so the grading body is identical
  * regardless of which root we return.
  */
-async function resolveFrameRoot(page: GradePage, frame: string): Promise<{ root: LocatorRoot; resolution: FrameResolution }> {
-  const fl = page.frameLocator(frame);
+async function resolveFrameRoot(page: GradePage, frames: string[]): Promise<{ root: LocatorRoot; resolution: FrameResolution }> {
+  // Modern path: chain frameLocator for each level (outer→inner).
+  let fl = page.frameLocator(frames[0]);
+  for (let i = 1; i < frames.length; i++) fl = fl.frameLocator(frames[i]);
   const reachable = await fl.locator(':root').count().catch(() => 0);
-  if (reachable) return { root: fl as unknown as LocatorRoot, resolution: { mode: 'frameLocator', selector: frame } };
-  // frameLocator reached nothing — try the deeper Frame API. Match a name out of a
-  // `frame[name="x"]` hint, else treat the hint itself as the name.
-  const m = /name\s*=\s*["']?([^"'\]]+)/.exec(frame);
-  const name = m ? m[1] : frame;
+  if (reachable) return { root: fl as unknown as LocatorRoot, resolution: { mode: 'frameLocator', selectors: frames } };
+  // frameLocator reached nothing — try the deeper Frame API. `page.frame({ name })` pierces the
+  // whole tree, so a NESTED legacy frame is reached by its (innermost) name directly. Match a name
+  // out of a `frame[name="x"]` hint on the deepest selector, else treat the hint itself as the name.
+  const last = frames[frames.length - 1];
+  const m = /name\s*=\s*["']?([^"'\]]+)/.exec(last);
+  const name = m ? m[1] : last;
   const fr = page.frame({ name });
   if (fr) return { root: fr, resolution: { mode: 'frame', name, degraded: true } };
   // Truly absent: fall back to the frameLocator root so grading reports "0 elements" as before.
-  return { root: fl as unknown as LocatorRoot, resolution: { mode: 'frameLocator', selector: frame } };
+  return { root: fl as unknown as LocatorRoot, resolution: { mode: 'frameLocator', selectors: frames } };
 }
 
 /**
@@ -275,8 +297,9 @@ export async function gradeLocator(page: GradePage, proposal: Proposal): Promise
   // elements resolve to 0 here.)
   let root: LocatorRoot = page;
   let frameResolution: FrameResolution | null = null;
-  if (proposal.frame) {
-    ({ root, resolution: frameResolution } = await resolveFrameRoot(page, proposal.frame));
+  const frames = frameChain(proposal.frame);
+  if (frames.length) {
+    ({ root, resolution: frameResolution } = await resolveFrameRoot(page, frames));
     proposal.frameResolution = frameResolution;
   }
   const frameDegraded = !!frameResolution?.degraded;

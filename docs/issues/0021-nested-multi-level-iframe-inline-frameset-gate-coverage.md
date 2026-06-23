@@ -1,7 +1,7 @@
 ---
 id: 0021
 title: Nested/multi-level iframe + inline frameset gate coverage
-status: open
+status: closed
 severity: medium
 group: 0019
 depends_on: []
@@ -29,15 +29,24 @@ Actual: only one level of `frame` is supported; a two-level-deep element is not 
 
 Plus: a legacy `<frameset>`/`<frame>` document's contents are not surfaced inline by the snapshot.
 
+## Resolution
+`Proposal.frame` now accepts a **chain** (`string | string[]`): `gradeLocator` walks it with chained
+`frameLocator(outer).frameLocator(inner).…` (new `frameChain` normalizer + `resolveFrameRoot` over an
+array), and `render()` emits the matching base. Legacy `<frameset>` keeps degrading to the by-name
+Frame API — and since `page.frame({name})` pierces the whole tree, a *nested* frame is reached by its
+innermost name. The model-facing `frame` param (`browser_expect_visible`, `propose_locator`) accepts
+the array form too.
+
 ## Acceptance
-- [ ] The gate grades an element nested **two levels deep** in iframes (multi-level `frameLocator`
-      chaining), preserving the accessible-tier ladder.
-- [ ] Inline `<frameset>`/`<frame>` content is surfaced/gradable (or, if out of scope, the limit is
-      explicitly documented with the reason and a clear error rather than a silent miss).
-- [ ] Deterministic fixtures + tests (extend `ladder-complex.spec.ts`): a 2-level nested-iframe case
-      and a frameset case, asserting the gate grades / bounces correctly. No model, no quota.
-- [ ] `make lint` + `make test` green; PLAN's "Limit: …nested iframes are single-level today" note
-      updated.
+- [x] The gate grades an element nested **two levels deep** in iframes (multi-level `frameLocator`
+      chaining), preserving the accessible-tier ladder. `fixtures/complex/nested-outer.html` →
+      `nested-mid.html` → `inner.html`.
+- [x] Legacy `<frameset>`/`<frame>` content remains gradable via the degraded by-name Frame API
+      (nested frame reached by innermost name); the degrade is logged as debt (existing test kept).
+- [x] Deterministic fixtures + tests (`ladder-complex.spec.ts`, now 9): a 2-level nested-iframe case
+      (grades + renders the chained `frameLocator`), a single-element-chain equivalence case, and the
+      frameset case. No model, no quota.
+- [x] `npm run lint` + `PW_CHANNEL=chromium npm test` green (180 passed); PLAN limit note updated.
 
 ## Notes
 Seam: `extension/qa-focus/ladder.mjs` (frame traversal) + new fixtures under `fixtures/`. Builds on

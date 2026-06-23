@@ -148,7 +148,7 @@ export function makeBrowserTools(
     }),
     tool('browser_expect_visible', {
       description: 'Verify a result is visible. Prefer an accessible role + name; for plain content (e.g. a new list-item label, which is NOT an element\'s accessible name) pass "text" instead. For an element inside an IFRAME, pass "frame" (a CSS selector for the <iframe>, e.g. iframe[title="Editor"]) — open shadow DOM needs nothing (Playwright pierces it). The locator is graded by the priority gate before asserting — a vague match (e.g. role "listitem" with no unique name, resolving to many) is REJECTED rather than passing as a false positive.',
-      parameters: { type: 'object', properties: { role: { type: 'string' }, name: { type: 'string' }, text: { type: 'string', description: 'visible text to assert (uses getByText) when the target has no accessible role+name' }, frame: { type: 'string', description: 'CSS selector for the containing <iframe>, when the element lives inside one' } } },
+      parameters: { type: 'object', properties: { role: { type: 'string' }, name: { type: 'string' }, text: { type: 'string', description: 'visible text to assert (uses getByText) when the target has no accessible role+name' }, frame: { type: ['string', 'array'], items: { type: 'string' }, description: 'CSS selector for the containing <iframe>, when the element lives inside one. For NESTED iframes pass an outer→inner array of selectors (e.g. ["iframe[title=\\"Outer\\"]", "iframe[title=\\"Inner\\"]"]).' } } },
       skipPermission: true,
       handler: async (a) => {
         if (!a.role && !a.text) return { textResultForLlm: 'provide either role (+name) or text', resultType: 'failure' };
