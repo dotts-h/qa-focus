@@ -60,10 +60,12 @@ GOAL="harden the add-to-cart flow" SPEC_NAME="add-to-cart" npm run codify   # li
 ## CLI
 
 Installed, `qa-focus` drives any app through one entrypoint — it embeds `@github/copilot-sdk` and
-uses your installed `copilot` login (no API key, no MCP):
+uses your installed `copilot` login (no API key, no MCP). It installs **straight from the GitHub
+repo** — there is no npm-registry package ([ADR 0006](docs/adr/0006-no-npm-publish-distribute-from-github.md));
+a git install runs the `prepare` build to compile `dist/`:
 
 ```bash
-npm i -g qa-focus          # or run ad-hoc with: npx qa-focus <command>
+npm i -g github:dotts-h/qa-focus    # or run ad-hoc: npx github:dotts-h/qa-focus <command>
 npx playwright install chromium
 
 qa-focus explore     --goal "Add a task and verify it appears" --url https://your.app

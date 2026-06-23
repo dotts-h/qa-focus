@@ -21,6 +21,7 @@
   ],
   "scripts": {
     "build": "tsc",
+    "prepare": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "playwright test",
     "lint": "tsc --noEmit && bash scripts/check-workflows.sh",

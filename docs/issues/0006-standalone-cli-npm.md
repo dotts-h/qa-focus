@@ -1,7 +1,7 @@
 ---
 id: 0006
 title: Standalone CLI npm package (qa-focus explore|codify|interactive)
-status: in-progress
+status: closed
 severity: high
 group: 0001
 depends_on: [0005]
@@ -23,12 +23,11 @@ build an agent). The **primary v1 deliverable**.
 ## Acceptance
 - [x] `package.json` `bin` entries; a single `qa-focus` entrypoint with subcommands + `--help`.
       → `bin/qa-focus.mjs` (flags → harness env contract), `tests/cli.spec.ts` (5).
-- [~] ~~Published to npm~~ → **distributed from the GitHub repo** ([ADR 0006](adr/0006-no-npm-publish-distribute-from-github.md)):
-      `npm i github:dotts-h/qa-focus` / `npx github:dotts-h/qa-focus`. `npm publish` is now a NON-GOAL
-      (`private:true` is permanent). The typed package shape is already clean-install-verified via
-      `npm pack` (the tarball path). **Remaining for git install:** add a `prepare` build script (so a
-      git install compiles the gitignored `dist/`), switch the README install to the git form, and
-      smoke `npx github:…`. Then close.
+- [x] ~~Published to npm~~ → **distributed from the GitHub repo** ([ADR 0006](adr/0006-no-npm-publish-distribute-from-github.md)):
+      `npm i github:dotts-h/qa-focus` / `npx github:dotts-h/qa-focus`. `npm publish` is a NON-GOAL
+      (`private:true` permanent). A `prepare: tsc` script compiles the gitignored `dist/` on a git
+      install; README install switched to the git form. Smoke-verified: `npm run prepare` builds
+      `dist/bin/qa-focus.mjs` and `node dist/bin/qa-focus.mjs --help` runs the dispatcher.
 - [x] README quickstart; respects existing env contract (GOAL/START_URL/PW_CHANNEL/FLOW/...).
       → README "CLI" section (npx/-g usage, flags→env contract).
 
