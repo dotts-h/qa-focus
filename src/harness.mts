@@ -33,11 +33,13 @@ export interface GatedSessionOptions {
   quiet?: boolean;
 }
 
-/** The created session, its client, the set of allowed tool names, and the stream detach. */
+/** The created session, its client, the set of allowed tool names, and the live-stream controls. */
 export interface GatedSession {
   session: CopilotSession;
   client: CopilotClientType;
   toolNames: Set<string>;
+  /** Terminate the current run-stream block (trailing newline) at a turn boundary (no-op when quiet). */
+  flushStream: () => void;
   /** Flush + unsubscribe the live run-stream renderer. Call once at teardown (no-op when quiet). */
   detachStream: () => void;
 }
@@ -73,7 +75,7 @@ export async function createGatedSession({ cli, model, tools, stepBudget, recenc
 
   // The live run stream rides this one seam (ADR 0002), so all three runners get it for free and
   // #0014 (cost) can ride the same tap. The renderer is pure (src/stream.mts); this only wires it.
-  const detachStream = attachStreamRenderer(session, { quiet });
+  const { flush: flushStream, detach: detachStream } = attachStreamRenderer(session, { quiet });
 
-  return { session, client, toolNames, detachStream };
+  return { session, client, toolNames, flushStream, detachStream };
 }

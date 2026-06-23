@@ -49,6 +49,17 @@ test('a full message event renders when streaming was off (no deltas)', () => {
   expect(play([message('m1', 'the answer')])).toBe('the answer\n');
 });
 
+test('an empty message delta does NOT suppress the cumulative full message (answer not lost)', () => {
+  // Regression: a zero-length delta must not mark the id "streamed" — otherwise the full event
+  // that follows is deduped away and the entire final answer vanishes from the stream.
+  expect(play([mDelta('m1', ''), message('m1', 'the real answer')])).toBe('the real answer\n');
+});
+
+test('an empty reasoning delta does NOT suppress the full reasoning, and prints no stray 💭', () => {
+  expect(play([rDelta('r1', ''), reasoning('r1', 'the real thought')])).toBe('💭 the real thought\n');
+  expect(play([rDelta('r1', '')])).toBe(''); // a lone empty delta renders nothing at all
+});
+
 test('a tool call renders name + compact single arg, then a success mark on the same line', () => {
   expect(play([toolStart('t1', 'browser_click', { ref: 'e5' }), toolDone('t1', true)])).toBe('🔧 browser_click(e5) ✓\n');
 });
@@ -70,6 +81,19 @@ test('a tool with no args renders empty parens', () => {
 test('a progress event closes the tool line; the later completion recaps with the tool name', () => {
   expect(play([toolStart('t1', 'run_spec', { name: 'add.spec.ts' }), toolProgress('t1', 'running 1 test'), toolDone('t1', true)]))
     .toBe('🔧 run_spec(add.spec.ts)\n   running 1 test\n   ✓ run_spec\n');
+});
+
+test('an orphan completion (no matching start) recaps without a dangling trailing space', () => {
+  expect(play([toolDone('t9', true)])).toBe('   ✓\n');
+});
+
+test('flush mid-stream resets state so a following block is not double-separated', () => {
+  const r = createStreamRenderer();
+  let out = r.render(mDelta('m1', 'answer one'));
+  out += r.flush(); // turn boundary
+  out += r.render(rDelta('r2', 'planning two'));
+  out += r.flush();
+  expect(out).toBe('answer one\n💭 planning two\n');
 });
 
 test('reasoning, a tool call, then the final message stream in order', () => {
@@ -113,7 +137,7 @@ function fakeSession() {
 test('attachStreamRenderer subscribes and writes rendered output; detach flushes + unsubscribes', () => {
   const s = fakeSession();
   let buf = '';
-  const detach = attachStreamRenderer(s as any, { write: (x) => { buf += x; } });
+  const { detach } = attachStreamRenderer(s as any, { write: (x) => { buf += x; } });
   expect(s.subscribed).toBe(true);
   s.emit(rDelta('r1', 'thinking'));
   expect(buf).toBe('💭 thinking');
@@ -122,12 +146,27 @@ test('attachStreamRenderer subscribes and writes rendered output; detach flushes
   expect(s.subscribed).toBe(false);
 });
 
+test('attachStreamRenderer flush terminates the open block at a turn boundary without unsubscribing', () => {
+  const s = fakeSession();
+  let buf = '';
+  const { flush, detach } = attachStreamRenderer(s as any, { write: (x) => { buf += x; } });
+  s.emit(mDelta('m1', 'answer one'));
+  flush(); // close turn 1's block — and reset so turn 2 doesn't double-separate
+  expect(buf).toBe('answer one\n');
+  expect(s.subscribed).toBe(true); // still live for the next turn
+  s.emit(rDelta('r2', 'planning two'));
+  detach();
+  expect(buf).toBe('answer one\n💭 planning two\n'); // exactly one newline between turns
+  expect(s.subscribed).toBe(false);
+});
+
 test('attachStreamRenderer with quiet:true does not subscribe or write', () => {
   const s = fakeSession();
   let buf = '';
-  const detach = attachStreamRenderer(s as any, { quiet: true, write: (x) => { buf += x; } });
+  const { flush, detach } = attachStreamRenderer(s as any, { quiet: true, write: (x) => { buf += x; } });
   expect(s.subscribed).toBe(false);
   s.emit(mDelta('m1', 'hi'));
+  flush();
   expect(buf).toBe('');
   detach();
   expect(buf).toBe('');

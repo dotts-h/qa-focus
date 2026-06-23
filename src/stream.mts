@@ -66,6 +66,10 @@ export function createStreamRenderer(): StreamRenderer {
       switch (event.type) {
         case 'assistant.reasoning_delta': {
           const { reasoningId, deltaContent } = event.data;
+          // An empty delta carries no text — render nothing AND don't mark the block streamed, so a
+          // later cumulative `assistant.reasoning` for the same id still prints (the runtime may emit
+          // zero-length opening/closing deltas; the SDK only promises `deltaContent: string`).
+          if (!deltaContent) return '';
           streamedReasoning.add(reasoningId);
           if (block === 'reasoning') return deltaContent;
           return open('reasoning') + THINK + deltaContent;
@@ -77,6 +81,9 @@ export function createStreamRenderer(): StreamRenderer {
         }
         case 'assistant.message_delta': {
           const { messageId, deltaContent } = event.data;
+          // Empty delta: render nothing and don't mark streamed, so the cumulative `assistant.message`
+          // still prints (otherwise a single zero-length delta would drop the whole final answer).
+          if (!deltaContent) return '';
           streamedMessage.add(messageId);
           if (block === 'message') return deltaContent;
           return open('message') + deltaContent;
@@ -94,7 +101,7 @@ export function createStreamRenderer(): StreamRenderer {
           return out;
         }
         case 'tool.execution_progress': {
-          const { toolCallId, progressMessage } = event.data;
+          const { progressMessage } = event.data;
           if (!progressMessage) return '';
           // Close the open 🔧 line (its result will recap with the tool name) and indent progress.
           const sep = block === 'tool' ? '\n' : '';
@@ -112,11 +119,13 @@ export function createStreamRenderer(): StreamRenderer {
             openTool = null;
             return ` ${mark}${suffix}\n`;
           }
-          // Progress (or another event) intervened — emit a standalone recap line with the name.
-          const name = toolNames.get(toolCallId) ?? '';
+          // Progress (or another event) intervened — emit a standalone recap line, naming the tool
+          // when we saw its start (drop the label entirely for an orphan completion, no trailing space).
+          const name = toolNames.get(toolCallId);
+          const label = name ? ` ${name}` : '';
           const sep = block === '' ? '' : '\n';
           block = '';
-          return `${sep}   ${mark} ${name}${suffix}\n`;
+          return `${sep}   ${mark}${label}${suffix}\n`;
         }
         default:
           return '';
@@ -139,23 +148,35 @@ export interface AttachStreamOptions {
   write?: (s: string) => void;
 }
 
+/** Live-stream subscription handle returned by {@link attachStreamRenderer}. */
+export interface StreamHandle {
+  /**
+   * Terminate any open (un-newlined) block by writing its trailing newline, then reset the renderer
+   * to a clean state. Call at a turn boundary (e.g. between interactive REPL turns) so the next
+   * turn's first line isn't joined to — or double-separated from — the previous turn's last line.
+   */
+  flush: () => void;
+  /** Flush and unsubscribe. Call once at teardown. */
+  detach: () => void;
+}
+
 /**
- * Wire a {@link createStreamRenderer} to a live session's event stream. Returns a detach function
- * that flushes the trailing newline and unsubscribes. When `quiet`, it subscribes to nothing and
+ * Wire a {@link createStreamRenderer} to a live session's event stream. Returns a {@link StreamHandle}
+ * to flush at turn boundaries and detach at teardown. When `quiet`, it subscribes to nothing and
  * writes nothing (so a piped run pays no rendering cost). The session must be created with
  * `streaming: true` to receive the incremental reasoning/message deltas (the harness does this).
  */
-export function attachStreamRenderer(session: CopilotSession, opts: AttachStreamOptions = {}): () => void {
-  if (opts.quiet) return () => {};
+export function attachStreamRenderer(session: CopilotSession, opts: AttachStreamOptions = {}): StreamHandle {
+  if (opts.quiet) return { flush: () => {}, detach: () => {} };
   const write = opts.write ?? ((s: string) => process.stdout.write(s));
   const renderer = createStreamRenderer();
   const unsubscribe = session.on((event) => {
     const text = renderer.render(event);
     if (text) write(text);
   });
-  return () => {
+  const flush = (): void => {
     const tail = renderer.flush();
     if (tail) write(tail);
-    unsubscribe();
   };
+  return { flush, detach: () => { flush(); unsubscribe(); } };
 }

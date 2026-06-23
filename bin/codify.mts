@@ -123,10 +123,9 @@ async function main(): Promise<void> {
 
   const r: any = res;
   const text = typeof r === 'string' ? r : r?.text ?? r?.content ?? r?.data?.content ?? '';
-  log('--- model summary ---');
-  // When streaming (not quiet) the final answer already rendered live — don't reprint it; only the
-  // quiet/piped path needs the summary text in stdout.
-  if (text && QUIET) console.log(text);
+  // When streaming (not quiet) the final answer already rendered live — don't reprint it or a
+  // bodyless "model summary" header; only the quiet/piped path needs the summary text in stdout.
+  if (text && QUIET) { log('--- model summary ---'); console.log(text); }
   log('accepted locators:', facts.length);
   for (const f of facts) console.log('  •', f);
 
