@@ -34,7 +34,11 @@ export type { GatedSession, GatedSessionOptions } from './harness.mjs';
 // The live run-stream renderer — events→lines for the Copilot-CLI-style stream (the harness
 // owns the subscription; the renderer is pure and separately tested).
 export { createStreamRenderer, attachStreamRenderer } from './stream.mjs';
-export type { StreamRenderer, AttachStreamOptions } from './stream.mjs';
+export type { StreamRenderer, AttachStreamOptions, StreamHandle } from './stream.mjs';
+
+// Per-run cost & usage accounting — pure accumulate/render + the live usage meter.
+export { accumulateUsage, formatUsage, renderCostSummary, attachCostMeter } from './cost.mjs';
+export type { UsageRecord, UsageSummary, ModelUsage, TokenTotals, AccumulateOptions, CostMeter } from './cost.mjs';
 
 // The model's capability surface — gated tool factories.
 export { makeBrowserTools } from './browser-tools.mjs';

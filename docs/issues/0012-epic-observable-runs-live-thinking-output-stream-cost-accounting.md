@@ -1,7 +1,7 @@
 ---
 id: 0012
 title: "Epic: Observable runs — live thinking/output stream + cost accounting"
-status: open
+status: closed
 severity: medium
 group:
 depends_on: []
@@ -38,9 +38,11 @@ The keystone CLI (#0006) is publish-ready; the next leverage is operability. Bot
 - [0014](0014-cost-usage-accounting-tokens-ai-credits-on-direct-shell-runs.md) — Cost & usage accounting (depends on 0013).
 
 ## Acceptance
-- [ ] #0013 merged — runs stream reasoning/output/tool events live; deterministic renderer tests.
-- [ ] #0014 merged — every run prints a token + AI-Credits summary; deterministic accumulator tests.
-- [ ] The event subscription lives once in the harness seam (ADR 0002), shared by all three bins.
+- [x] #0013 merged (PR #25) — runs stream reasoning/output/tool events live; deterministic renderer tests.
+- [x] #0014 merged — every run prints a token + AI-Credits summary; deterministic accumulator tests.
+- [x] The event subscription lives once in the harness seam (ADR 0002): `createGatedSession` attaches
+      both `attachStreamRenderer` (#0013, `quiet`-gated) and `attachCostMeter` (#0014, always-on),
+      shared by all three bins.
 
 ## Notes
 SDK event types (verified): `AssistantReasoningEvent`/`AssistantReasoningDeltaEvent`,

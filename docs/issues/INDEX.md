@@ -30,6 +30,6 @@ never a cycle).
 | [0009](0009-live-injection-redteam.md) | Live adversarial prompt-injection red-team | open | medium | — | adr:0001 |
 | [0010](0010-trace-driven-healing.md) | M5 trace-driven self-healing | open | low | — | — |
 | [0011](0011-frameset-flake.md) | Flaky legacy &lt;frameset&gt; degradation test under parallel load | closed | low | — | — |
-| [0012](0012-epic-observable-runs-live-thinking-output-stream-cost-accounting.md) | Epic: Observable runs — live thinking/output stream + cost accounting | open | medium | — | |
+| [0012](0012-epic-observable-runs-live-thinking-output-stream-cost-accounting.md) | Epic: Observable runs — live thinking/output stream + cost accounting | closed | medium | — | |
 | [0013](0013-live-run-stream-reasoning-assistant-deltas-tool-events.md) | Live run stream (reasoning + assistant deltas + tool events) | closed | medium | 0012 | |
-| [0014](0014-cost-usage-accounting-tokens-ai-credits-on-direct-shell-runs.md) | Cost & usage accounting (tokens + AI-Credits, on direct shell runs) | open | medium | 0012 | |
+| [0014](0014-cost-usage-accounting-tokens-ai-credits-on-direct-shell-runs.md) | Cost & usage accounting (tokens + AI-Credits, on direct shell runs) | closed | medium | 0012 | |

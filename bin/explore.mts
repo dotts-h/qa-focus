@@ -46,6 +46,8 @@ const ALLOWLIST = (process.env.ALLOWLIST || 'localhost').split(',');
 const CDP_PORT = Number(process.env.CDP_PORT || 9222);
 // Live run stream is default-on; silence it for piped/CI runs (#0013).
 const QUIET = !!process.env.QA_QUIET || process.argv.includes('--quiet');
+// Optional credits→$ rate (USD per AI-Credit) for the cost summary's $ estimate (#0014).
+const AIU_USD = Number(process.env.QA_AIU_USD) || undefined;
 const log = (...a: unknown[]): void => console.log('[explore]', ...a);
 
 async function main(): Promise<void> {
@@ -97,7 +99,7 @@ async function main(): Promise<void> {
   // The control model (hard leash + step budget) lives in src/harness.mts (ADR 0002). The
   // budget is the runaway-loop circuit-breaker: on exhaustion the model is denied further
   // tools and told to stop and summarize (it still writes its findings artifact).
-  const { session, client, detachStream } = await createGatedSession({
+  const { session, client, detachStream, getUsage } = await createGatedSession({
     cli: CLI,
     model: process.env.COPILOT_MODEL,
     tools: makeBrowserTools({ getCtx, allow, allowlist: ALLOWLIST, sink, findings, flow, saveState: surface.saveState, statePath: process.env.STORAGE_STATE }),
@@ -129,7 +131,10 @@ async function main(): Promise<void> {
   mkdirSync(artifactsDir, { recursive: true });
   const tracePath = join(artifactsDir, 'explore-trace.zip');
   await context.tracing.stop({ path: tracePath });
-  const md = renderArtifact({ goal: GOAL, sink, findings, tracePath });
+  // What the run cost (#0014) — folded into both the human artifact and the machine-readable flow.
+  const usage = getUsage({ creditsToUsd: AIU_USD });
+  flow.usage = usage;
+  const md = renderArtifact({ goal: GOAL, sink, findings, tracePath, usage });
   const out = join(artifactsDir, 'explore-report.md');
   writeFileSync(out, md);
   // The machine-readable flow — the codifier's input for the M4 handoff.
