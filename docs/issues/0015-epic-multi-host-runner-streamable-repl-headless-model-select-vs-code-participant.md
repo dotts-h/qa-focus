@@ -1,7 +1,7 @@
 ---
 id: 0015
 title: Epic: Multi-host runner — streamable REPL, headless model-select, VS Code participant
-status: open
+status: closed
 severity: medium
 group: 
 depends_on: []
@@ -45,7 +45,7 @@ non-MCP paths: `readline` for the REPL (ADR 0008) and a VS Code chat participant
 complete the multi-host story.)
 
 ## Acceptance
-- [ ] #0016 merged — the REPL streams reasoning/output/tool lines above a live prompt, no flicker, stable across a long session.
-- [ ] #0017 merged — `--list-models` / `--model` select the Copilot model; a headless one-shot run works (CI/pipe friendly).
-- [ ] #0018 merged — `@qa-focus` chat participant runs in VS Code Copilot Chat, owning its loop, zero MCP.
-- [ ] All three surfaces (web/Electron/OpenFin) reachable from at least the CLI host; documented.
+- [x] #0016 merged — the REPL streams reasoning/output/tool lines above a live prompt, no flicker, stable across a long session.
+- [x] #0017 merged — `--list-models` / `--model` select the Copilot model; a headless one-shot run works (CI/pipe friendly).
+- [x] #0018 merged — `@qa-focus` chat participant in VS Code Copilot Chat, owning its loop, zero MCP (builds + parser tested; in-editor load is manual).
+- [x] All three surfaces (web/Electron/OpenFin) reachable from the CLI host (`src/provider.mts`), documented; the multi-host runner spans standalone CLI + Copilot CLI plugin (#0007) + VS Code participant.

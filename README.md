@@ -104,6 +104,14 @@ copilot plugin install qa-focus@qa-focus            # installs the qa-focus skil
 
 (The CLI itself still installs from git — see above; the plugin's skill drives it.)
 
+## VS Code (Copilot Chat)
+
+An `@qa-focus` **chat participant** (`vscode/`) runs qa-focus inside GitHub Copilot Chat — a
+first-class participant that **owns its loop** (not a Language Model Tool, not an MCP server;
+[ADR 0007](docs/adr/0007-vscode-surface-chat-participant.md)). `@qa-focus https://your.app <goal>`
+drives the CLI and streams the run into the chat. Build/load: `cd vscode && npm i && npm run build`,
+then F5 in VS Code (or package a `.vsix`). See [`vscode/README.md`](vscode/README.md).
+
 ## GitHub Action (CI)
 
 A composite action (`.github/actions/qa-focus`) wraps the CLI for CI. `mode: gate` runs the durable,

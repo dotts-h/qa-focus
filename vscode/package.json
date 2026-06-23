@@ -1,0 +1,35 @@
+{
+  "name": "qa-focus-vscode",
+  "displayName": "qa-focus — agentic QA in Chat",
+  "description": "An @qa-focus chat participant for GitHub Copilot Chat: explore an app and codify durable Playwright tests, with a deterministic locator gate. No MCP.",
+  "version": "0.1.0",
+  "publisher": "dotts-h",
+  "license": "Apache-2.0",
+  "repository": { "type": "git", "url": "https://github.com/dotts-h/qa-focus" },
+  "type": "module",
+  "engines": { "vscode": "^1.95.0" },
+  "categories": ["AI", "Testing", "Other"],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "chatParticipants": [
+      {
+        "id": "qa-focus",
+        "name": "qa-focus",
+        "fullName": "qa-focus",
+        "description": "Explore an app and codify durable Playwright tests — gate-verified, no MCP",
+        "isSticky": true
+      }
+    ]
+  },
+  "scripts": {
+    "build": "tsc -p ./",
+    "watch": "tsc -p ./ -w",
+    "vscode:prepublish": "tsc -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "@types/vscode": "^1.95.0",
+    "typescript": "^6.0.3"
+  }
+}
