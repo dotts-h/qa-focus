@@ -14,6 +14,9 @@ on:
       url:
         description: start URL (explore/codify)
         required: false
+      goal:
+        description: what to do (explore/codify) — without this, explore uses a generic default
+        required: false
 
 jobs:
   qa-focus:
@@ -25,8 +28,14 @@ jobs:
         with:
           mode: ${{ inputs.mode }}
           url: ${{ inputs.url }}
-          # explore/codify need a Copilot login token; gate needs none:
+          goal: ${{ inputs.goal }}
+          # explore/codify need a Copilot login token; gate needs none. NOTE: the CI auth mechanism
+          # for the model-driven modes is not yet proven on a hosted runner — gate is the production
+          # path; treat explore/codify-in-CI as experimental.
           # copilot-token: ${{ secrets.COPILOT_TOKEN }}
       - name: Show result
         shell: bash
-        run: echo "qa-focus result=${{ steps.qa.outputs.result }} flow=${{ steps.qa.outputs.flow }}"
+        env: # via env, not inline ${{ }} in run: — avoids the shell-injection rule
+          RESULT: ${{ steps.qa.outputs.result }}
+          FLOW: ${{ steps.qa.outputs.flow }}
+        run: echo "qa-focus result=${RESULT} flow=${FLOW}"

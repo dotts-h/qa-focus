@@ -81,15 +81,19 @@ runs:
         node-version: '20'
     - name: Install qa-focus (from git — no npm registry, ADR 0006)
       shell: bash
-      run: npm i -g "github:dotts-h/qa-focus#${{ inputs.ref }}"
+      # interpolate inputs via env, NOT inline ${{ }} in run: — avoids shell-injection (semgrep).
+      env:
+        REF: ${{ inputs.ref }}
+      run: npm i -g "github:dotts-h/qa-focus#${REF}"
     - name: Install Playwright Chromium
       shell: bash
       run: npx --yes playwright install --with-deps chromium
     - name: Run qa-focus
       id: run
       shell: bash
-      run: bash "${{ github.action_path }}/run.sh"
+      run: bash "${ACTION_PATH}/run.sh"
       env:
+        ACTION_PATH: ${{ github.action_path }}
         QA_MODE: ${{ inputs.mode }}
         GOAL: ${{ inputs.goal }}
         START_URL: ${{ inputs.url }}

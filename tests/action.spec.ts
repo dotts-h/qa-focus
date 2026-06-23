@@ -4,13 +4,16 @@
 // mode's dispatch is smoke-tested separately. These lock the manifest STRUCTURE so a future edit that
 // breaks an input/output, drops the no-MCP posture, or mis-triggers the example fails CI.)
 import { test, expect } from '@playwright/test';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, mkdtempSync, writeFileSync, chmodSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { load as parseYaml } from 'js-yaml';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ACTION_DIR = join(ROOT, '.github/actions/qa-focus');
+const RUN_SH = join(ACTION_DIR, 'run.sh');
 const readYaml = (p: string): any => parseYaml(readFileSync(p, 'utf8'));
 
 test('action.yml is a composite action with the documented inputs and outputs', () => {
@@ -53,6 +56,44 @@ test('the action wires NO MCP server (ADR 0001/0003) — advertising "No MCP" is
   for (const needle of ['mcpservers', 'mcp.json', '@playwright/mcp', 'modelcontextprotocol', 'mcp-server', 'mcp server config']) {
     expect(a, `action.yml has no ${needle}`).not.toContain(needle);
     expect(sh, `run.sh has no ${needle}`).not.toContain(needle);
+  }
+});
+
+test('run.sh exits non-zero with a clear message on an unknown mode (dispatch guard)', () => {
+  let code = 0;
+  let stderr = '';
+  try {
+    execFileSync('bash', [RUN_SH], { env: { ...process.env, QA_MODE: 'bogus', GITHUB_OUTPUT: '/dev/null' }, stdio: 'pipe' });
+  } catch (e: any) { code = e.status; stderr = String(e.stderr || ''); }
+  expect(code).toBe(2);
+  expect(stderr).toMatch(/unknown mode 'bogus'/);
+});
+
+test('run.sh STILL emits result=fail when explore fails (the set -e / emit-on-failure guard)', () => {
+  // The explorer process.exit(1)s on failure; under `set -euo pipefail` that must NOT skip the
+  // output emit. Stub `qa-focus` to fail, run the explore branch, assert result=fail is still written
+  // (and the script propagates the non-zero exit).
+  const work = mkdtempSync(join(tmpdir(), 'qa-action-'));
+  try {
+    const bin = join(work, 'qa-focus');
+    writeFileSync(bin, '#!/usr/bin/env bash\nexit 1\n');
+    chmodSync(bin, 0o755);
+    const outFile = join(work, 'gh_output');
+    writeFileSync(outFile, '');
+    let code = 0;
+    try {
+      execFileSync('bash', [RUN_SH], {
+        cwd: work,
+        env: { ...process.env, PATH: `${work}:${process.env.PATH}`, QA_MODE: 'explore', GITHUB_OUTPUT: outFile },
+        stdio: 'pipe',
+      });
+    } catch (e: any) { code = e.status; }
+    const out = readFileSync(outFile, 'utf8');
+    expect(code, 'the failed explore propagates a non-zero exit').not.toBe(0);
+    expect(out, 'result=fail is emitted despite the failure').toContain('result=fail');
+    expect(out).toMatch(/artifact=/); // the artifact/flow paths are still surfaced
+  } finally {
+    rmSync(work, { recursive: true, force: true });
   }
 });
 
