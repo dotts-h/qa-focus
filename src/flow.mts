@@ -78,7 +78,7 @@ function describeStep(s: FlowStep): string {
     case 'click':  return `click the ${s.role || 'element'}${s.name ? ` "${s.name}"` : ''}`;
     case 'fill':   return `fill the ${s.role || 'field'}${s.name ? ` "${s.name}"` : ''} with "${s.text ?? ''}"${s.submit ? ' and press Enter' : ''}`;
     case 'press':  return `press ${s.key}`;
-    case 'expect': return `assert visible: ${s.role ? `${s.role}${s.name ? ` "${s.name}"` : ''}` : `text "${s.text ?? ''}"`}${s.frame ? ` (inside frame ${s.frame})` : ''}`;
+    case 'expect': return `assert visible: ${s.role ? `${s.role}${s.name ? ` "${s.name}"` : ''}` : `text "${s.text ?? ''}"`}${s.frame ? ` (inside frame ${Array.isArray(s.frame) ? s.frame.join(' › ') : s.frame})` : ''}`;
     default:       return JSON.stringify(s);
   }
 }
