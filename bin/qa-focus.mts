@@ -15,6 +15,10 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 // siblings on plain node. Derive both the sibling extension and the runner from how THIS
 // file was loaded, so the dispatch works in dev and in dist without a build-time switch.
 const SELF_EXT = import.meta.url.endsWith('.mts') ? '.mts' : '.mjs';
+// package.json sits one level up from the source bin/ but TWO levels up from the compiled
+// dist/bin/ (the published `files:[dist]` ships package.json at the package root) — so the
+// hop depends on which form is running, same as the sibling-script dispatch below.
+const PKG_JSON = SELF_EXT === '.mts' ? join(HERE, '../package.json') : join(HERE, '../../package.json');
 
 // subcommand → harness script
 const COMMANDS: Record<string, string> = { explore: `explore${SELF_EXT}`, codify: `codify${SELF_EXT}`, interactive: `interactive${SELF_EXT}` };
@@ -75,7 +79,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
 }
 
 function version(): string {
-  try { return JSON.parse(readFileSync(join(HERE, '../package.json'), 'utf8')).version; }
+  try { return JSON.parse(readFileSync(PKG_JSON, 'utf8')).version; }
   catch { return '0.0.0'; }
 }
 
