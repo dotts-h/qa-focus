@@ -1,6 +1,6 @@
 # ADR 0004 — Migrate the core to TypeScript and publish a typed npm package
 
-- Status: accepted
+- Status: accepted — the **registry-publish** clause is superseded-by-[0006](0006-no-npm-publish-distribute-from-github.md) (distribute from the GitHub repo instead); the TypeScript migration + typed exports stand.
 - Date: 2026-06-23
 
 ## Context

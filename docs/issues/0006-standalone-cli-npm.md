@@ -8,7 +8,7 @@ depends_on: [0005]
 github: 7
 forgejo:
 links:
-  adr: 0003
+  adr: 0003, 0006
   prs: []
   issues: [0007, 0008]
   regression:
@@ -23,19 +23,20 @@ build an agent). The **primary v1 deliverable**.
 ## Acceptance
 - [x] `package.json` `bin` entries; a single `qa-focus` entrypoint with subcommands + `--help`.
       → `bin/qa-focus.mjs` (flags → harness env contract), `tests/cli.spec.ts` (5).
-- [~] Published to npm (typed, from #0005; `private:true` flips on publish); `npx qa-focus explore`
-      works from a clean install.
-      → **publish-READY** and clean-install-verified (`npm pack` → install the tarball in a clean dir
-      → `qa-focus --version`/`--help`/dispatch run from the compiled `dist/bin`, `@playwright/cli`
-      installs as a dep, and `import { … } from 'qa-focus'` exposes the typed core). The actual
-      `npm publish` (flip `private:false`) is the remaining **operator step** — needs the npm token.
+- [~] ~~Published to npm~~ → **distributed from the GitHub repo** ([ADR 0006](adr/0006-no-npm-publish-distribute-from-github.md)):
+      `npm i github:dotts-h/qa-focus` / `npx github:dotts-h/qa-focus`. `npm publish` is now a NON-GOAL
+      (`private:true` is permanent). The typed package shape is already clean-install-verified via
+      `npm pack` (the tarball path). **Remaining for git install:** add a `prepare` build script (so a
+      git install compiles the gitignored `dist/`), switch the README install to the git form, and
+      smoke `npx github:…`. Then close.
 - [x] README quickstart; respects existing env contract (GOAL/START_URL/PW_CHANNEL/FLOW/...).
       → README "CLI" section (npx/-g usage, flags→env contract).
 
 ## Notes
 No MCP (ADR 0003). Wraps `bin/explore.mts`/`codify.mts`/`interactive.mts` behind one CLI. JS
-scaffold landed; ported to TypeScript under #0005. **Remaining: only the `npm publish` itself**
-(flip `private:false`) — everything it depends on is done.
+scaffold landed; ported to TypeScript under #0005. **Distribution is git-based, not npm-registry**
+([ADR 0006](adr/0006-no-npm-publish-distribute-from-github.md)) — remaining work is the `prepare`
+build script + README git-install + an `npx github:…` smoke (no npm token, no operator publish step).
 
 **"Works from a clean install" — blockers surfaced by the #0005 review — RESOLVED:**
 - ✅ `src/pwcli.mts` now resolves the `@playwright/cli` bin via `createRequire(import.meta.url)`
