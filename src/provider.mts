@@ -34,7 +34,8 @@ export interface Surface {
   close: () => Promise<void>;
 }
 
-/** Match an OpenFin/CDP window by URL and/or title (substring or RegExp). */
+/** Match an OpenFin/CDP window by URL and/or title (substring or RegExp). When BOTH are given,
+ *  a window must match BOTH (AND). */
 export interface WindowMatch {
   url?: string | RegExp;
   title?: string | RegExp;
@@ -67,14 +68,18 @@ export function listWindows(browser: Browser): Page[] {
 }
 
 /**
- * The first window whose url and/or title match — for picking a specific OpenFin window when an
- * app opens several. Returns `undefined` (never a wrong window) when nothing matches.
+ * The first window whose url and/or title match (both must match when both are given) — for
+ * picking a specific OpenFin window when an app opens several. Returns `undefined` (never a wrong
+ * window) when nothing matches. A window that throws while being inspected (mid-close/crashed on a
+ * live RVM) is skipped, not fatal — so transient window churn can't abort the whole attach.
  */
 export async function pickWindow(browser: Browser, match: WindowMatch): Promise<Page | undefined> {
   for (const p of listWindows(browser)) {
-    if (match.url && !matches(p.url(), match.url)) continue;
-    if (match.title && !matches(await p.title(), match.title)) continue;
-    return p;
+    try {
+      if (match.url && !matches(p.url(), match.url)) continue;
+      if (match.title && !matches(await p.title(), match.title)) continue;
+      return p;
+    } catch { /* window closing/crashed — skip it and try the next */ }
   }
   return undefined;
 }
@@ -143,6 +148,8 @@ export async function openSurface(
     const browser = await chromium.connectOverCDP(cdpUrl);
     // Pick the requested window when an app opens several; else the first existing window.
     const picked = window ? await pickWindow(browser, window) : undefined;
+    // A mis-specified matcher would otherwise silently drive the WRONG window — make it diagnosable.
+    if (window && !picked) console.warn(`[qa-focus] openfin window matcher ${JSON.stringify(window)} matched no window — falling back to the first.`);
     const page = picked
       ?? browser.contexts()[0]?.pages()[0]
       ?? (await (browser.contexts()[0] ?? (await browser.newContext())).newPage());

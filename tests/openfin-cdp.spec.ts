@@ -8,12 +8,28 @@
 // no OpenFin runtime (which is Windows/macOS-only). The real-RVM run is the opt-in OPENFIN_LIVE test
 // in tests/live-openfin.spec.ts.
 import { test, expect, chromium } from '@playwright/test';
+import { createServer } from 'node:net';
 import { openSurface, listWindows, pickWindow } from '../src/provider.mjs';
 import { gradeLocator } from '../extension/qa-focus/ladder.mjs';
 
-// Distinct CDP ports per test so the (parallel) cases never collide on a port.
+// A currently-free ephemeral port per test. Hardcoded absolute ports are a flake/false-pass vector:
+// if one is already bound (a leftover chromium from a retried run, or any other process), chromium's
+// --remote-debugging-port silently fails to bind and connectOverCDP would attach to the STALE
+// browser. A fresh OS-assigned port avoids that entirely.
+function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const srv = createServer();
+    srv.on('error', reject);
+    srv.listen(0, () => {
+      const addr = srv.address();
+      const port = typeof addr === 'object' && addr ? addr.port : 0;
+      srv.close(() => (port ? resolve(port) : reject(new Error('no port'))));
+    });
+  });
+}
+
 test('openfin provider attaches over CDP; a window is a usable Page', async () => {
-  const host = await openSurface({ kind: 'web', cdpPort: 9341, channel: process.env.PW_CHANNEL });
+  const host = await openSurface({ kind: 'web', cdpPort: await freePort(), channel: process.env.PW_CHANNEL });
   try {
     await host.page.setContent('<title>Alpha</title><h1>Alpha</h1>');
     const of = await openSurface({ kind: 'openfin', cdpUrl: host.cdpEndpoint! });
@@ -28,7 +44,7 @@ test('openfin provider attaches over CDP; a window is a usable Page', async () =
 });
 
 test('listWindows enumerates every page; pickWindow selects by title and by url', async () => {
-  const host = await openSurface({ kind: 'web', cdpPort: 9342, channel: process.env.PW_CHANNEL });
+  const host = await openSurface({ kind: 'web', cdpPort: await freePort(), channel: process.env.PW_CHANNEL });
   try {
     await host.page.goto('data:text/html,<title>Alpha</title>');
     const p2 = await host.context.newPage();
@@ -49,7 +65,7 @@ test('listWindows enumerates every page; pickWindow selects by title and by url'
 });
 
 test('openSurface(openfin, {window}) opens onto the matching window, not just the first', async () => {
-  const host = await openSurface({ kind: 'web', cdpPort: 9343, channel: process.env.PW_CHANNEL });
+  const host = await openSurface({ kind: 'web', cdpPort: await freePort(), channel: process.env.PW_CHANNEL });
   try {
     await host.page.setContent('<title>Alpha</title>');
     const p2 = await host.context.newPage();
@@ -61,15 +77,16 @@ test('openSurface(openfin, {window}) opens onto the matching window, not just th
   } finally { await host.close(); }
 });
 
-test('openSurface(openfin, {window}) falls back to the first window when no match', async () => {
-  const host = await openSurface({ kind: 'web', cdpPort: 9344, channel: process.env.PW_CHANNEL });
+test('openSurface(openfin, {window}) falls back to the FIRST window when no match', async () => {
+  const host = await openSurface({ kind: 'web', cdpPort: await freePort(), channel: process.env.PW_CHANNEL });
   try {
     await host.page.setContent('<title>Alpha</title>');
+    const p2 = await host.context.newPage();
+    await p2.setContent('<title>Beta</title>');
     const of = await openSurface({ kind: 'openfin', cdpUrl: host.cdpEndpoint!, window: { title: 'Nope' } });
     try {
-      // No window matched → a usable Page is still returned (the first), never a crash.
-      expect(of.page).toBeTruthy();
-      expect(typeof of.page.title).toBe('function');
+      // Falls back to the first window specifically (Alpha) — not just "some Page".
+      expect(await of.page.title()).toBe('Alpha');
     } finally { await of.close(); }
   } finally { await host.close(); }
 });
