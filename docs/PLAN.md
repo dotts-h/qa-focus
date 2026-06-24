@@ -21,28 +21,37 @@ typed package (ADR 0004). Two acceptance axes:
   Proxmox Windows VM.
 
 **B. Deliverable — installable CLI tools (ADR 0003), all non-MCP:**
-- **Standalone CLI** published to npm — `qa-focus explore | codify | interactive`.
+- **Standalone CLI**, git-distributed (ADR 0006 — *no* npm registry publish): `npm i github:dotts-h/qa-focus`
+  / `npx github:dotts-h/qa-focus explore | codify | interactive` (the `prepare` build compiles `dist/`).
 - **Copilot CLI plugin** — `plugin.json` + git-marketplace install.
 - **GitHub Action** — run explore/codify/the authored gate in CI.
 
 Tracked as the **v1 epic** (#0001) in `docs/issues/`.
 
-### v1 progress (2026-06-23)
+### v1 progress (2026-06-24)
+
+**v1 is code-complete — both acceptance axes met. The only deferred item is the literal `npm publish`,
+reversed by ADR 0006 (distribute from the GitHub repo instead).**
 
 | issue | item | status |
 |------|------|--------|
-| #0006 | `qa-focus` CLI entrypoint (explore/codify/interactive; flags→env) | **scaffold shipped** (JS); publish gated on #0005 |
+| #0006 | `qa-focus` CLI entrypoint (explore/codify/interactive; flags→env) | **done** — git-install distribution per ADR 0006; `npm publish` is a non-goal (`private:true` permanent) |
 | #0003 | web Chrome-channel coverage | **done** — suite green on `PW_CHANNEL=chrome`, documented |
 | #0011 | frameset flake | **done** — fixed + guarded (REGRESSIONS #3) |
-| #0005 | TypeScript migration + typed npm package | **next** — the foundation; unblocks publish, #0007, #0008 |
-| #0004 | Electron explorer in-process action path | open |
-| #0007 / #0008 | Copilot plugin / GitHub Action | open (gated on the npm publish) |
-| #0009 | live injection red-team | open (spends model credits) |
-| #0010 | trace-driven self-healing | open |
-| #0002 | **OpenFin** live-verify | **DONE (#0024)** — live-verified on the M4 Mac mini (RVM 44.146.101.4); Rosetta 2 + GUI session required (fixture README) |
+| #0005 | TypeScript migration + typed package | **done** — every module is `.mts`; strict `tsconfig`; `tsc` build → `dist/` (JS + `.d.mts`) |
+| #0004 | Electron explorer in-process action path | **done** — `src/inproc-driver.mts` (#0026); surface-aware codifier (#0027, ADR 0011) |
+| #0007 / #0008 | Copilot plugin / GitHub Action | **done** — plugin via git marketplace (#0007); composite Action (#0008) |
+| #0009 | live injection red-team | **done** — live leash + leash-denial verified (#0023) |
+| #0010 | trace-driven self-healing | **done** — wired to the DOM snapshot store (#0020, ADR 0009) |
+| #0002 | **OpenFin** live-verify | **done (#0024)** — live-verified on the M4 Mac mini (RVM 44.146.101.4); Rosetta 2 + GUI session required (fixture README) |
 
-**Recommended next:** #0005 (TypeScript migration) — a focused, single-purpose pass. Decision points
-ahead: the OpenFin infra (Mac mini vs Windows VM) and whether to spend credits on the #0009 red-team.
+Beyond v1: the **v1.1 epic (#0019)** — observable runs (live stream + cost accounting), the streamable
+REPL, headless model selection, and the VS Code chat participant (#0018, ADR 0007) — is also **closed**.
+
+**Recommended next:** nothing in the v1/v1.1 backlog is open. Real remaining work is operational, not
+feature: (1) the `release.yml` build step is still a `TODO(backfill)` stub — wire the real `tsc` build +
+artifact bundling if tagged releases are wanted (the `cut-release` flow), and (2) decide whether to spend
+credits on a deeper live red-team. v1 is otherwise done; M6 packaging is satisfied by ADR 0006.
 
 ## Milestones
 
